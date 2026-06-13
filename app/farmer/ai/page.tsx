@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Sparkles, Loader2 } from 'lucide-react';
 import { aiApi } from '@/lib/api';
-import Navbar from '@/components/common/Navbar';
 
 interface Message {
   id: string;
@@ -58,9 +57,8 @@ export default function AIChatPage() {
   };
 
   return (
-    <div className="min-h-screen bg-bg">
-      <Navbar />
-      <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="-mt-8 -mx-4 sm:-mx-6 lg:-mx-8">
+      <div className="flex flex-col h-[calc(100vh-4rem-2rem)]">
         {/* Header */}
         <div className="bg-gradient-to-r from-primary to-primary-dark text-white py-6 px-6">
           <div className="container-x flex items-center gap-3">

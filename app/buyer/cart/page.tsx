@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Trash2, Minus, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '@/lib/store';
@@ -13,6 +14,7 @@ const FREE_THRESHOLD = 500;
 const PLATFORM_FEE = 5;
 
 export default function CartPage() {
+  const router = useRouter();
   const items = useCart((s) => s.items);
   const total = useCart((s) => s.total());
   const setQuantity = useCart((s) => s.setQuantity);
@@ -92,7 +94,7 @@ export default function CartPage() {
             <span className="text-lg font-semibold">Total</span>
             <span className="text-2xl font-extrabold text-primary">{formatINR(grand)}</span>
           </div>
-          <button className="btn-primary w-full text-base py-4 mt-3">
+          <button onClick={() => router.push('/buyer/checkout')} className="btn-primary w-full text-base py-4 mt-3">
             Proceed to checkout <ArrowRight className="size-5" />
           </button>
         </div>

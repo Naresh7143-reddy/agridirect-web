@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowRight, Search, MapPin, Sparkles } from 'lucide-react';
 import { productsApi, categoriesApi } from '@/lib/api';
 import ProductCard from '@/components/common/ProductCard';
 
 export default function BuyerHome() {
+  const router = useRouter();
+  const [search, setSearch] = useState('');
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,14 +49,19 @@ export default function BuyerHome() {
       </motion.section>
 
       {/* Search */}
-      <div className="relative">
+      <form
+        onSubmit={(e) => { e.preventDefault(); router.push(`/buyer/browse${search ? `?q=${encodeURIComponent(search)}` : ''}`); }}
+        className="relative"
+      >
         <Search className="absolute left-5 top-1/2 -translate-y-1/2 size-5 text-ink-3" />
         <input
           type="search"
           placeholder="Search for tomatoes, onions, mangoes…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-14 pr-6 py-4 rounded-full bg-white shadow-card border-2 border-transparent focus:border-primary outline-none text-lg"
         />
-      </div>
+      </form>
 
       {/* Categories */}
       {categories.length > 0 && (

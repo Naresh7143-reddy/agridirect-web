@@ -1,14 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Search, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Search } from 'lucide-react';
 import { productsApi } from '@/lib/api';
 import ProductCard from '@/components/common/ProductCard';
 
+export const dynamic = 'force-dynamic';
+
 export default function BrowsePage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><div className="text-4xl">⏳</div></div>}>
+      <BrowseInner />
+    </Suspense>
+  );
+}
+
+function BrowseInner() {
+  const params = useSearchParams();
+  const initial = params.get('q') ?? '';
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initial);
 
   useEffect(() => {
     productsApi.list().then((r) => setProducts(r.data || [])).finally(() => setLoading(false));
@@ -36,9 +49,6 @@ export default function BrowsePage() {
             className="w-full pl-12 pr-4 py-3 rounded-full bg-white shadow-card border-2 border-transparent focus:border-primary outline-none"
           />
         </div>
-        <button className="btn-secondary py-3 px-5">
-          <SlidersHorizontal className="size-4" /> Filters
-        </button>
       </div>
 
       {loading ? (
