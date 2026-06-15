@@ -23,15 +23,25 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const recaptchaContainer = useRef<HTMLDivElement>(null);
 
+  const setupRecaptcha = () => {
+    const auth = getFirebaseAuth();
+    if (window.recaptchaVerifier) {
+      try { window.recaptchaVerifier.clear(); } catch {}
+      window.recaptchaVerifier = undefined;
+    }
+    if (recaptchaContainer.current) {
+      recaptchaContainer.current.innerHTML = '';
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaContainer.current, {
+        size: 'invisible',
+      });
+    }
+    return window.recaptchaVerifier;
+  };
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      const auth = getFirebaseAuth();
-      if (!window.recaptchaVerifier && recaptchaContainer.current) {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaContainer.current, {
-          size: 'invisible',
-        });
-      }
+      setupRecaptcha();
     } catch (e) {
       console.warn('Firebase not configured yet');
     }
@@ -45,13 +55,16 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const auth = getFirebaseAuth();
-      const verifier = window.recaptchaVerifier!;
-      const result = await signInWithPhoneNumber(auth, `+91${phone}`, verifier);
+      const verifier = window.recaptchaVerifier ?? setupRecaptcha();
+      const result = await signInWithPhoneNumber(auth, `+91${phone}`, verifier!);
       window.confirmationResult = result;
       toast.success('OTP sent! Check your messages.');
       setStep('otp');
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not send OTP');
+      console.error('sendOTP failed:', e);
+      toast.error(e?.code ? `${e.code}: ${e.message}` : (e?.message ?? 'Could not send OTP'));
+      // reCAPTCHA tokens are single-use — rebuild it so the next attempt works
+      try { setupRecaptcha(); } catch {}
     } finally {
       setLoading(false);
     }
@@ -92,7 +105,15 @@ export default function LoginPage() {
         }
       }
     } catch (e: any) {
-      toast.error(e?.message ?? 'Invalid OTP');
+      console.error('verifyOTP failed:', e);
+      if (e?.code === 'auth/code-expired') {
+        toast.error('OTP expired — please request a new one');
+        setStep('phone');
+        setOtp('');
+        try { setupRecaptcha(); } catch {}
+      } else {
+        toast.error(e?.code ? `${e.code}: ${e.message}` : (e?.message ?? 'Invalid OTP'));
+      }
     } finally {
       setLoading(false);
     }
