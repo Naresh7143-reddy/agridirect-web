@@ -12,9 +12,9 @@ export const dynamic = 'force-dynamic';
 
 const MENU = [
   { icon: Package,    label: 'My orders',          href: '/buyer/orders' },
-  { icon: MapPin,     label: 'Saved addresses',    href: '/buyer/profile' },
-  { icon: Bell,       label: 'Notifications',      href: '/buyer/profile' },
-  { icon: HelpCircle, label: 'Help & support',     href: '/buyer/profile' },
+  { icon: MapPin,     label: 'Saved addresses',    href: '/buyer/addresses' },
+  { icon: Bell,       label: 'Notifications',      href: '/buyer/notifications' },
+  { icon: HelpCircle, label: 'Help & support',     href: '/buyer/help' },
   { icon: FileText,   label: 'Terms & conditions', href: 'https://agridirect-backend-80yz.onrender.com/api/terms', external: true },
   { icon: Shield,     label: 'Privacy policy',     href: 'https://agridirect-backend-80yz.onrender.com/api/privacy', external: true },
 ];

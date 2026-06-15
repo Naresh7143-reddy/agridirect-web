@@ -51,6 +51,9 @@ export const categoriesApi = {
 export const buyerApi = {
   getAddresses: () => client.get('/api/buyer/addresses').then((r) => r.data),
   addAddress: (data: any) => client.post('/api/buyer/addresses', data).then((r) => r.data),
+  updateAddress: (id: string, data: any) => client.put(`/api/buyer/addresses/${id}`, data).then((r) => r.data),
+  deleteAddress: (id: string) => client.delete(`/api/buyer/addresses/${id}`).then((r) => r.data),
+  setDefaultAddress: (id: string) => client.patch(`/api/buyer/addresses/${id}/default`).then((r) => r.data),
   getOrders: () => client.get('/api/buyer/orders').then((r) => r.data),
   placeOrder: (data: any) => client.post('/api/buyer/orders', data).then((r) => r.data),
 };
