@@ -31,7 +31,7 @@ export default function Navbar() {
           <NavLink href="/buyer">Home</NavLink>
           <NavLink href="/buyer/browse">Browse</NavLink>
           <NavLink href="/buyer/orders">Orders</NavLink>
-          <NavLink href="/farmer/ai"><Sparkles className="size-4 inline mr-1" />AI Assist</NavLink>
+          <NavLink href="/buyer/ai"><Sparkles className="size-4 inline mr-1" />AI Assist</NavLink>
         </div>
 
         <div className="flex items-center gap-3">

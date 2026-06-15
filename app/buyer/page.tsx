@@ -84,7 +84,7 @@ export default function BuyerHome() {
 
       {/* AI banner */}
       <Link
-        href="/farmer/ai"
+        href="/buyer/ai"
         className="block rounded-3xl bg-gradient-to-r from-secondary/20 to-primary/10 p-6 sm:p-8 hover:shadow-hover transition"
       >
         <div className="flex items-center justify-between">
