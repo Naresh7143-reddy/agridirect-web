@@ -38,11 +38,14 @@ export default function AIChatPage() {
     const msg = text ?? input.trim();
     if (!msg) return;
     const userMsg: Message = { id: Date.now().toString(), role: 'user', text: msg };
+    const history = messages
+      .filter((m) => m.id !== 'welcome')
+      .map((m) => ({ role: m.role, content: m.text }));
     setMessages((m) => [...m, userMsg]);
     setInput('');
     setTyping(true);
     try {
-      const res = await aiApi.chat(msg);
+      const res = await aiApi.chat(msg, 'English', history);
       const reply: string =
         (res?.data && typeof res.data === 'object' && res.data.reply) ||
         (typeof res?.data === 'string' && res.data) ||
