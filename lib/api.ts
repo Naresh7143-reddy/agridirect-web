@@ -41,6 +41,18 @@ client.interceptors.response.use(
   (r) => r,
   async (err) => {
     const original = err.config;
+
+    // Rate-limited: show message and bail out (do NOT attempt token refresh)
+    if (err.response?.status === 429) {
+      if (typeof window !== 'undefined') {
+        // Dynamically import toast to avoid SSR issues
+        import('sonner').then(({ toast }) =>
+          toast.error('Too many requests. Please wait 1 minute and try again.')
+        );
+      }
+      return Promise.reject(err);
+    }
+
     if (err.response?.status !== 401 || original._retry || typeof window === 'undefined') {
       return Promise.reject(err);
     }
