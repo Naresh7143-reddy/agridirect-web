@@ -60,6 +60,7 @@ export default function ProductCard({ product, index = 0 }: { product: any; inde
               onClick={handleAdd}
               className="size-9 rounded-full bg-primary text-white flex items-center justify-center hover:scale-110 transition shadow-sm"
               aria-label="Add to cart"
+              data-testid="add-to-cart-btn"
             >
               <Plus className="size-5" />
             </button>

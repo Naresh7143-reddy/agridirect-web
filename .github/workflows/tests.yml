@@ -1,0 +1,255 @@
+name: Full Test Suite
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Component + E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # ── Setup ──────────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install Python dependencies
+        run: pip install -r tests/requirements.txt
+
+      # ── 1. Component Tests (Vitest) ────────────────────────────────────────
+      - name: Run component tests (Vitest)
+        id: vitest
+        run: |
+          mkdir -p reports
+          npx vitest run \
+            --reporter=verbose \
+            --reporter=json \
+            --outputFile.json=reports/vitest-results.json \
+            || echo "VITEST_FAILED=true" >> $GITHUB_ENV
+        continue-on-error: true
+
+      # ── 2. Build & Start Next.js for E2E ──────────────────────────────────
+      - name: Build Next.js app
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'https://agridirect-backend-80yz.onrender.com' }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY || 'placeholder' }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID || 'placeholder' }}
+
+      - name: Start Next.js server (background)
+        run: |
+          npm start &
+          # Wait until the server responds
+          timeout 60 bash -c 'until curl -sf http://localhost:3000; do sleep 2; done'
+        env:
+          PORT: 3000
+
+      # ── 3. E2E Tests (Selenium / pytest) ──────────────────────────────────
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Run E2E tests (Selenium)
+        id: selenium
+        working-directory: tests/e2e
+        run: |
+          python -m pytest \
+            --junitxml=../../reports/pytest-results.xml \
+            --tb=short \
+            -v \
+            --continue-on-collection-errors \
+            || echo "SELENIUM_FAILED=true" >> $GITHUB_ENV
+        env:
+          TEST_BASE_URL: http://localhost:3000
+        continue-on-error: true
+
+      # ── 4. Generate Excel report ───────────────────────────────────────────
+      - name: Generate Excel report
+        if: always()
+        run: |
+          python tests/generate_report.py \
+            --vitest reports/vitest-results.json \
+            --pytest  reports/pytest-results.xml \
+            --out     reports/test-report-${{ github.run_number }}.xlsx
+
+      # ── 5. Upload artifacts ────────────────────────────────────────────────
+      - name: Upload test report (Excel)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-${{ github.run_number }}
+          path: |
+            reports/test-report-*.xlsx
+            reports/vitest-results.json
+            reports/pytest-results.xml
+          retention-days: 30
+
+      - name: Upload failure screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ github.run_number }}
+          path: reports/screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # ── 6. Add inline annotations for each test failure ───────────────────
+      - name: Annotate failures
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // Parse Vitest JSON
+            let vitestFailed = [];
+            try {
+              const raw = JSON.parse(fs.readFileSync('reports/vitest-results.json', 'utf8'));
+              for (const suite of (raw.testResults || [])) {
+                for (const t of (suite.assertionResults || [])) {
+                  if (t.status === 'failed') {
+                    vitestFailed.push({
+                      file: suite.name.replace(process.cwd() + '/', ''),
+                      title: [...(t.ancestorTitles || []), t.title].join(' > '),
+                      error: (t.failureMessages || []).join('\n').slice(0, 300),
+                    });
+                  }
+                }
+              }
+            } catch (e) { console.log('No vitest results:', e.message); }
+
+            // Parse pytest XML
+            let seleniumFailed = [];
+            try {
+              const xml = fs.readFileSync('reports/pytest-results.xml', 'utf8');
+              const matches = [...xml.matchAll(/<testcase[^>]+name="([^"]+)"[^>]*classname="([^"]+)"[^>]*>[\s\S]*?<(?:failure|error)[^>]*message="([^"]*)"[^>]*>/g)];
+              seleniumFailed = matches.map(m => ({
+                file: 'tests/e2e',
+                title: `${m[2]}.${m[1]}`,
+                error: m[3].slice(0, 300),
+              }));
+            } catch (e) { console.log('No pytest results:', e.message); }
+
+            const allFailed = [...vitestFailed, ...seleniumFailed];
+            for (const f of allFailed) {
+              core.error(`TEST FAILED: ${f.title}\n${f.error}`, { file: f.file, title: f.title });
+            }
+            if (allFailed.length > 0) {
+              core.setFailed(`${allFailed.length} test(s) failed.`);
+            }
+
+      # ── 7. Auto-create / update GitHub Issues for failures ─────────────────
+      - name: Create or update GitHub Issues for failures
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            // Collect all failures
+            const failures = [];
+            try {
+              const raw = JSON.parse(fs.readFileSync('reports/vitest-results.json', 'utf8'));
+              for (const suite of (raw.testResults || [])) {
+                for (const t of (suite.assertionResults || [])) {
+                  if (t.status === 'failed') {
+                    failures.push({
+                      title: `[Test Failure] ${[...(t.ancestorTitles||[]), t.title].join(' > ')}`,
+                      body: `**Suite:** ${suite.name}\n**Error:**\n\`\`\`\n${(t.failureMessages||[]).join('\n').slice(0,1000)}\n\`\`\`\n\n**Run:** ${runUrl}`,
+                    });
+                  }
+                }
+              }
+            } catch (e) {}
+
+            try {
+              const xml = fs.readFileSync('reports/pytest-results.xml', 'utf8');
+              const nameRe = /<testcase[^>]+name="([^"]+)"[^>]*classname="([^"]+)"[^>]*>/g;
+              const failRe = /<(?:failure|error)[^>]*message="([^"]*)"/g;
+              const cases = [...xml.matchAll(/<testcase([^>]+)>([\s\S]*?)<\/testcase>/g)];
+              for (const tc of cases) {
+                if (!/<failure|<error/.test(tc[2])) continue;
+                const nameM = tc[1].match(/name="([^"]+)"/);
+                const classM = tc[1].match(/classname="([^"]+)"/);
+                const msgM = tc[2].match(/message="([^"]*)"/);
+                const name = nameM ? nameM[1] : 'unknown';
+                const cls  = classM ? classM[1] : '';
+                const msg  = msgM ? msgM[1] : '';
+                failures.push({
+                  title: `[Test Failure] ${cls}.${name}`,
+                  body: `**Suite:** E2E (Selenium)\n**Error:**\n\`\`\`\n${msg.slice(0,1000)}\n\`\`\`\n\n**Run:** ${runUrl}`,
+                });
+              }
+            } catch (e) {}
+
+            if (failures.length === 0) {
+              console.log('No failures — skipping issue creation.');
+              return;
+            }
+
+            // Fetch existing open issues labelled automated-test to dedup
+            const existing = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'automated-test',
+              per_page: 100,
+            });
+            const existingTitles = new Map(existing.map(i => [i.title, i.number]));
+
+            for (const f of failures) {
+              if (existingTitles.has(f.title)) {
+                // Update existing issue with latest run link
+                const issueNumber = existingTitles.get(f.title);
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  body: `❌ Still failing in run [#${context.runId}](${runUrl})\n\n${f.body}`,
+                });
+                console.log(`Updated issue #${issueNumber}: ${f.title}`);
+              } else {
+                // Create new issue
+                const issue = await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: f.title,
+                  body: f.body,
+                  labels: ['bug', 'automated-test'],
+                });
+                console.log(`Created issue #${issue.data.number}: ${f.title}`);
+              }
+            }
+
+      # ── 8. Final status ───────────────────────────────────────────────────
+      - name: Fail job if any suite failed
+        if: always()
+        run: |
+          if [ "${VITEST_FAILED:-}" = "true" ] || [ "${SELENIUM_FAILED:-}" = "true" ]; then
+            echo "One or more test suites failed."
+            exit 1
+          fi

@@ -40,7 +40,7 @@ export default function CartPage() {
       <div className="lg:col-span-2 space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-extrabold">Your cart ({items.length})</h1>
-          <button onClick={clear} className="text-sm text-ink-2 hover:text-error">Clear all</button>
+          <button onClick={clear} className="text-sm text-ink-2 hover:text-error" data-testid="cart-clear-btn">Clear all</button>
         </div>
 
         {items.map((item, i) => (
@@ -50,6 +50,7 @@ export default function CartPage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.05 }}
             className="card flex items-center gap-4"
+          data-testid="cart-item"
           >
             <div className="size-20 rounded-xl bg-bg overflow-hidden relative flex-shrink-0">
               {item.image ? (
@@ -64,15 +65,15 @@ export default function CartPage() {
               </div>
             </div>
             <div className="flex items-center gap-2 bg-bg rounded-full px-1.5 py-1.5">
-              <button onClick={() => setQuantity(item.productId, item.quantity - 1)} className="size-7 rounded-full bg-white hover:bg-border flex items-center justify-center">
+              <button onClick={() => setQuantity(item.productId, item.quantity - 1)} className="size-7 rounded-full bg-white hover:bg-border flex items-center justify-center" data-testid="qty-decrease">
                 <Minus className="size-3" />
               </button>
-              <span className="font-bold w-6 text-center text-sm">{item.quantity}</span>
-              <button onClick={() => setQuantity(item.productId, item.quantity + 1)} className="size-7 rounded-full bg-primary text-white flex items-center justify-center">
+              <span className="font-bold w-6 text-center text-sm" data-testid="qty-value">{item.quantity}</span>
+              <button onClick={() => setQuantity(item.productId, item.quantity + 1)} className="size-7 rounded-full bg-primary text-white flex items-center justify-center" data-testid="qty-increase">
                 <Plus className="size-3" />
               </button>
             </div>
-            <button onClick={() => { remove(item.productId); toast.success('Removed'); }} className="p-2 text-ink-3 hover:text-error transition">
+            <button onClick={() => { remove(item.productId); toast.success('Removed'); }} className="p-2 text-ink-3 hover:text-error transition" data-testid="remove-item">
               <Trash2 className="size-4" />
             </button>
           </motion.div>
@@ -94,7 +95,7 @@ export default function CartPage() {
             <span className="text-lg font-semibold">Total</span>
             <span className="text-2xl font-extrabold text-primary">{formatINR(grand)}</span>
           </div>
-          <button onClick={() => router.push('/buyer/checkout')} className="btn-primary w-full text-base py-4 mt-3">
+          <button onClick={() => router.push('/buyer/checkout')} className="btn-primary w-full text-base py-4 mt-3" data-testid="checkout-btn">
             Proceed to checkout <ArrowRight className="size-5" />
           </button>
         </div>

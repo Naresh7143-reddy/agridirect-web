@@ -149,6 +149,7 @@ export default function LoginPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                   className="flex-1 py-3 bg-transparent outline-none"
+                  data-testid="phone-input"
                 />
               </div>
             </div>
@@ -156,6 +157,7 @@ export default function LoginPage() {
               onClick={sendOTP}
               disabled={loading || phone.length !== 10}
               className="btn-primary w-full mt-6"
+              data-testid="send-otp-btn"
             >
               {loading ? <Loader2 className="size-5 animate-spin" /> : <>Send OTP <ArrowRight className="size-5" /></>}
             </button>
@@ -176,11 +178,13 @@ export default function LoginPage() {
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
               className="w-full rounded-2xl border-2 border-border focus:border-primary bg-white px-4 py-4 text-center text-2xl font-mono tracking-[0.5em] outline-none"
               autoFocus
+              data-testid="otp-input"
             />
             <button
               onClick={verifyOTP}
               disabled={loading || otp.length !== 6}
               className="btn-primary w-full mt-6"
+              data-testid="verify-otp-btn"
             >
               {loading ? <Loader2 className="size-5 animate-spin" /> : 'Verify & continue'}
             </button>

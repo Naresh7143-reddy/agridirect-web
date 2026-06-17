@@ -14,3 +14,10 @@ next-env.d.ts
 __pycache__/
 *.pyc
 selenium-tests/
+
+# Test reports
+reports/*.xlsx
+reports/screenshots/
+reports/vitest-results.json
+reports/pytest-results.xml
+reports/coverage/

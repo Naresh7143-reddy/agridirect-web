@@ -108,6 +108,7 @@ export default function RegisterPage() {
                 transition={{ delay: i * 0.1 }}
                 onClick={() => { setRole(r.key); setStep('form'); }}
                 className="group text-left bg-white rounded-3xl p-8 shadow-card hover:shadow-hover hover:-translate-y-2 transition"
+                data-testid={`role-${r.key}`}
               >
                 <div className={`size-16 rounded-2xl bg-gradient-to-br ${r.color} text-white flex items-center justify-center mb-5`}>
                   <r.icon className="size-8" />
@@ -143,7 +144,7 @@ export default function RegisterPage() {
         <p className="text-ink-2 mt-2">Tell us a bit about yourself</p>
 
         <div className="space-y-4 mt-8">
-          <Field label="Full Name *" value={name} onChange={setName} placeholder="e.g. Ramesh Kumar" />
+          <Field label="Full Name *" value={name} onChange={setName} placeholder="e.g. Ramesh Kumar" testId="name-input" />
           {role === 'FARMER' && (
             <>
               <Field label="Farm Name" value={farmName} onChange={setFarmName} placeholder="Optional" />
@@ -152,7 +153,7 @@ export default function RegisterPage() {
           )}
         </div>
 
-        <button onClick={submit} disabled={loading || !name.trim()} className="btn-primary w-full mt-8">
+        <button onClick={submit} disabled={loading || !name.trim()} className="btn-primary w-full mt-8" data-testid="register-submit-btn">
           {loading ? <Loader2 className="size-5 animate-spin" /> : <>Create account <ArrowRight className="size-5" /></>}
         </button>
       </motion.div>
@@ -160,7 +161,7 @@ export default function RegisterPage() {
   );
 }
 
-function Field({ label, value, onChange, placeholder }: any) {
+function Field({ label, value, onChange, placeholder, testId }: any) {
   return (
     <div>
       <label className="block text-sm font-semibold mb-2">{label}</label>
@@ -169,6 +170,7 @@ function Field({ label, value, onChange, placeholder }: any) {
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className="w-full px-4 py-3 rounded-2xl border-2 border-border focus:border-primary outline-none"
+        data-testid={testId}
       />
     </div>
   );

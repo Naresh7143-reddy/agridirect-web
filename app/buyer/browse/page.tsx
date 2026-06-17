@@ -47,6 +47,7 @@ function BrowseInner() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-3 rounded-full bg-white shadow-card border-2 border-transparent focus:border-primary outline-none"
+            data-testid="browse-search-input"
           />
         </div>
       </div>
