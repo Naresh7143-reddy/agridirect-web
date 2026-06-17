@@ -10,8 +10,12 @@ import { formatINR } from '@/lib/utils';
 export default function FarmerHome() {
   const [stats, setStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
+  const [farmerName, setFarmerName] = useState<string>('');
 
   useEffect(() => {
+    client.get('/api/auth/me')
+      .then((r) => setFarmerName(r.data?.data?.name ?? ''))
+      .catch(() => {});
     client.get('/api/farmer/dashboard')
       .then((r) => setStats(r.data?.data ?? {}))
       .catch(() => {})
@@ -26,7 +30,7 @@ export default function FarmerHome() {
       <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl bg-gradient-to-br from-primary to-primary-dark text-white p-8 sm:p-10 relative overflow-hidden">
         <div className="absolute top-4 right-4 text-9xl opacity-10">🌾</div>
         <p className="text-white/80">{greeting},</p>
-        <h1 className="text-4xl sm:text-5xl font-extrabold mt-1">Farmer 🌾</h1>
+        <h1 className="text-4xl sm:text-5xl font-extrabold mt-1">{farmerName || 'Farmer'} 🌾</h1>
         <p className="mt-4 text-white/90">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </motion.section>
 

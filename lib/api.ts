@@ -129,6 +129,11 @@ export const buyerApi = {
 };
 
 export const aiApi = {
-  chat: (message: string, language = 'English', history: { role: 'user' | 'assistant'; content: string }[] = []) =>
-    client.post('/api/farmer/ai/chat', { message, language, history }).then((r) => r.data),
+  chat: (
+    message: string,
+    language = 'English',
+    history: { role: 'user' | 'assistant'; content: string }[] = [],
+    imageBase64?: string,
+  ) =>
+    client.post('/api/farmer/ai/chat', { message, language, history, imageBase64 }).then((r) => r.data),
 };
