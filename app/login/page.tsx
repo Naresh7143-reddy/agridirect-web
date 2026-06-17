@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Phone, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import Cookies from 'js-cookie';
 import { getFirebaseAuth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase';
-import { authApi } from '@/lib/api';
+import { authApi, saveAuthCookies } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,11 +83,10 @@ export default function LoginPage() {
       // Try login against backend
       try {
         const res = await authApi.loginWithIdToken(idToken);
-        const token = res.data?.tokens?.accessToken;
+        const tokens = res.data?.tokens;
         const role = res.data?.user?.role;
-        if (token) {
-          Cookies.set('access_token', token, { expires: 7 });
-          Cookies.set('user_role', role || 'BUYER', { expires: 7 });
+        if (tokens?.accessToken) {
+          saveAuthCookies(tokens, role || 'BUYER');
         }
         toast.success(`Welcome back!`);
         const home = role === 'FARMER' ? '/farmer' : role === 'DELIVERY' ? '/delivery' : '/buyer';

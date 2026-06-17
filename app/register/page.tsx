@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { ShoppingCart, Wheat, Bike, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Cookies from 'js-cookie';
-import { authApi } from '@/lib/api';
+import { authApi, saveAuthCookies } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,11 +52,10 @@ export default function RegisterPage() {
         payload.location = location.trim() || undefined;
       }
       const res = await authApi.register(payload);
-      const token = res.data?.tokens?.accessToken;
+      const tokens = res.data?.tokens;
       const userRole = res.data?.user?.role;
-      if (token) {
-        Cookies.set('access_token', token, { expires: 7 });
-        Cookies.set('user_role', userRole || role, { expires: 7 });
+      if (tokens?.accessToken) {
+        saveAuthCookies(tokens, userRole || role);
       }
       sessionStorage.removeItem('idToken');
       toast.success('Welcome to AgriDirect!');
@@ -68,11 +67,10 @@ export default function RegisterPage() {
       if (/already registered|already exists|conflict/i.test(msg)) {
         try {
           const res = await authApi.loginWithIdToken(idToken);
-          const token = res.data?.tokens?.accessToken;
+          const tokens = res.data?.tokens;
           const userRole = res.data?.user?.role;
-          if (token) {
-            Cookies.set('access_token', token, { expires: 7 });
-            Cookies.set('user_role', userRole || 'BUYER', { expires: 7 });
+          if (tokens?.accessToken) {
+            saveAuthCookies(tokens, userRole || 'BUYER');
           }
           const home = userRole === 'FARMER' ? '/farmer' : userRole === 'DELIVERY' ? '/delivery' : '/buyer';
           router.push(home);
