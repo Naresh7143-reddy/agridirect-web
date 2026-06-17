@@ -56,6 +56,8 @@ class TestPublicRoutes:
 
 class TestNavigation:
     def test_register_page_redirects_to_login_without_session_token(self, driver):
+        # Navigate to the site first so sessionStorage is accessible (not data: URL)
+        driver.get(BASE_URL)
         driver.delete_all_cookies()
         driver.execute_script("sessionStorage.clear()")
         driver.get(f"{BASE_URL}/register")

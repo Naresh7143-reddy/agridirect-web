@@ -1,12 +1,14 @@
 """E2E tests for Cart page.
 
-Note: Cart state is stored in localStorage. These tests pre-seed it via JS
-so they don't depend on a live product listing.
+Cart state lives in localStorage. Tests inject auth cookies first (so
+middleware lets the driver through), then seed the cart via JS, then reload.
 """
 import os
 import json
+import time
 import pytest
 from pages import CartPage
+from conftest import inject_auth_cookies
 
 BASE_URL = os.environ.get("TEST_BASE_URL", "http://localhost:3000")
 
@@ -20,37 +22,33 @@ CART_ITEM = {
     "farmerName": "E2E Farmer",
 }
 
-CART_STATE = {
-    "state": {"items": [CART_ITEM]},
-    "version": 0,
-}
-
 
 def seed_cart(driver, items=None):
-    """Inject cart state into localStorage before page load."""
-    state = {
-        "state": {"items": items if items is not None else [CART_ITEM]},
-        "version": 0,
-    }
+    """Inject cart state into localStorage, then reload to apply it."""
+    if items is None:
+        items = [CART_ITEM]
+    state = {"state": {"items": items}, "version": 0}
     driver.execute_script(
         f"window.localStorage.setItem('agridirect-cart', JSON.stringify({json.dumps(state)}));"
     )
     driver.refresh()
+    time.sleep(0.8)
 
 
 @pytest.fixture
 def cart_page_empty(driver):
+    inject_auth_cookies(driver, BASE_URL, role="BUYER")
     driver.get(f"{BASE_URL}/buyer/cart")
-    import time; time.sleep(0.5)
+    time.sleep(0.8)
     return CartPage(driver, BASE_URL)
 
 
 @pytest.fixture
 def cart_page_with_item(driver):
+    inject_auth_cookies(driver, BASE_URL, role="BUYER")
     driver.get(f"{BASE_URL}/buyer/cart")
-    import time; time.sleep(0.5)
+    time.sleep(0.5)
     seed_cart(driver)
-    import time; time.sleep(0.5)
     return CartPage(driver, BASE_URL)
 
 
@@ -62,7 +60,8 @@ class TestCartEmptyState:
         assert cart_page_empty.cart_count == 0
 
     def test_browse_link_present(self, cart_page_empty):
-        assert "Browse products" in cart_page_empty.driver.find_element("tag name", "body").text
+        body = cart_page_empty.driver.find_element("tag name", "body").text
+        assert "Browse products" in body
 
 
 class TestCartWithItems:
@@ -82,26 +81,29 @@ class TestCartWithItems:
 class TestCartQuantityControls:
     def test_increase_quantity(self, cart_page_with_item):
         cart_page_with_item.click_increase_qty(0)
-        import time; time.sleep(0.2)
+        time.sleep(0.2)
         assert cart_page_with_item.get_qty_value(0) == 3
 
     def test_decrease_quantity(self, cart_page_with_item):
         cart_page_with_item.click_decrease_qty(0)
-        import time; time.sleep(0.2)
+        time.sleep(0.2)
         assert cart_page_with_item.get_qty_value(0) == 1
 
 
 class TestCartRemove:
     def test_remove_item_clears_list(self, cart_page_with_item):
         cart_page_with_item.remove_item(0)
-        import time; time.sleep(0.3)
+        time.sleep(0.3)
         assert cart_page_with_item.is_empty
 
     def test_clear_all_empties_cart(self, driver):
+        inject_auth_cookies(driver, BASE_URL, role="BUYER")
         driver.get(f"{BASE_URL}/buyer/cart")
-        import time; time.sleep(0.5)
-        seed_cart(driver, [CART_ITEM, {**CART_ITEM, "productId": "e2e-prod-2", "name": "E2E Onions"}])
         time.sleep(0.5)
+        seed_cart(driver, [
+            CART_ITEM,
+            {**CART_ITEM, "productId": "e2e-prod-2", "name": "E2E Onions"},
+        ])
         page = CartPage(driver, BASE_URL)
         assert page.cart_count == 2
         page.click_clear_all()
@@ -113,5 +115,5 @@ class TestCartMiddlewareRedirect:
     def test_unauthenticated_cart_redirects(self, driver):
         driver.delete_all_cookies()
         driver.get(f"{BASE_URL}/buyer/cart")
-        import time; time.sleep(1)
+        time.sleep(1)
         assert "/login" in driver.current_url

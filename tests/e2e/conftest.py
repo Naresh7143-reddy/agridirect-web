@@ -9,6 +9,23 @@ from selenium.webdriver.chrome.options import Options
 BASE_URL = os.environ.get("TEST_BASE_URL", "http://localhost:3000")
 SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "reports", "screenshots")
 
+# Fake auth cookies that satisfy the middleware check without a real backend JWT.
+# Middleware only checks cookie presence + user_role value — it does not verify the JWT.
+FAKE_AUTH_COOKIES = [
+    {"name": "access_token",  "value": "fake-test-access-token",  "path": "/"},
+    {"name": "refresh_token", "value": "fake-test-refresh-token", "path": "/"},
+    {"name": "user_role",     "value": "BUYER",                    "path": "/"},
+]
+
+
+def inject_auth_cookies(driver, base_url: str, role: str = "BUYER"):
+    """Inject auth cookies so middleware lets the driver through protected routes."""
+    driver.get(base_url)          # must be on the domain before setting cookies
+    driver.delete_all_cookies()
+    driver.add_cookie({"name": "access_token",  "value": "fake-test-access-token",  "path": "/"})
+    driver.add_cookie({"name": "refresh_token", "value": "fake-test-refresh-token", "path": "/"})
+    driver.add_cookie({"name": "user_role",     "value": role,                       "path": "/"})
+
 
 @pytest.fixture(scope="session", autouse=True)
 def ensure_screenshots_dir():
