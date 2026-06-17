@@ -9,7 +9,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/components/**/*.test.{ts,tsx}'],
-    reporter: ['verbose', 'json'],
+    reporters: ['verbose', 'json'],
     outputFile: { json: './reports/vitest-results.json' },
     coverage: {
       provider: 'v8',
