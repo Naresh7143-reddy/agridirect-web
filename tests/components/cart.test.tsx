@@ -66,8 +66,8 @@ describe('CartPage — With items', () => {
 
   it('shows order summary with correct total', () => {
     render(<CartPage />);
-    // 2 × ₹50 = ₹100 subtotal + ₹40 delivery + ₹5 platform = ₹145
-    expect(screen.getByText(/₹145/)).toBeInTheDocument();
+    // 2 × ₹50 = ₹100 subtotal + ₹40 delivery + ₹10 platform = ₹150
+    expect(screen.getByText(/₹150/)).toBeInTheDocument();
   });
 
   it('shows free delivery message when subtotal ≥ ₹500', () => {

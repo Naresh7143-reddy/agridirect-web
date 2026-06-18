@@ -100,8 +100,20 @@ export default function FarmerProfile() {
       {profile && (
         <div className="card space-y-3">
           <h2 className="font-extrabold text-lg">Farm details</h2>
-          {profile.farmName && <Info icon={Wheat} label="Farm name" value={profile.farmName} />}
-          {profile.location && <Info icon={MapPin} label="Location" value={profile.location} />}
+          {profile.farmName && <Info icon={Wheat} label="Farm name" value={String(profile.farmName)} />}
+          {profile.location && (
+            <Info
+              icon={MapPin}
+              label="Location"
+              value={
+                typeof profile.location === 'string'
+                  ? profile.location
+                  : [profile.location.address, profile.location.city, profile.location.state]
+                      .filter(Boolean)
+                      .join(', ') || JSON.stringify(profile.location)
+              }
+            />
+          )}
         </div>
       )}
 
