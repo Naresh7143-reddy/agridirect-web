@@ -66,8 +66,16 @@ jobs:
       - name: Start Next.js server (background)
         run: |
           npm start &
-          # Wait until the server responds
-          timeout 60 bash -c 'until curl -sf http://localhost:3000; do sleep 2; done'
+          echo "Waiting for Next.js on port 3000..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
+              echo "Server ready after ${i} attempts"
+              break
+            fi
+            echo "Attempt $i — waiting 3s..."
+            sleep 3
+          done
+          curl -sf http://localhost:3000 || (echo "Server never started" && exit 1)
         env:
           PORT: 3000
 
@@ -77,16 +85,18 @@ jobs:
 
       - name: Run E2E tests (Selenium)
         id: selenium
-        working-directory: tests/e2e
         run: |
-          python -m pytest \
-            --junitxml=../../reports/pytest-results.xml \
+          mkdir -p reports
+          python -m pytest tests/e2e \
+            --junitxml=${{ github.workspace }}/reports/pytest-results.xml \
             --tb=short \
             -v \
             --continue-on-collection-errors \
+            -p no:cacheprovider \
             || echo "SELENIUM_FAILED=true" >> $GITHUB_ENV
         env:
           TEST_BASE_URL: http://localhost:3000
+          PYTHONPATH: ${{ github.workspace }}/tests/e2e
         continue-on-error: true
 
       # ── 3b. Debug pytest XML ──────────────────────────────────────────────
@@ -94,7 +104,9 @@ jobs:
         if: always()
         run: |
           echo "=== pytest-results.xml ==="
-          cat reports/pytest-results.xml 2>/dev/null || echo "(file not found)"
+          cat ${{ github.workspace }}/reports/pytest-results.xml 2>/dev/null || echo "(file not found)"
+          echo "=== reports dir ==="
+          ls -la reports/ 2>/dev/null || echo "(reports dir not found)"
 
       # ── 4. Generate Excel report ───────────────────────────────────────────
       - name: Generate Excel report
