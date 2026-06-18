@@ -99,7 +99,90 @@ jobs:
             --pytest  reports/pytest-results.xml \
             --out     reports/test-report-${{ github.run_number }}.xlsx
 
-      # ── 5. Upload artifacts ────────────────────────────────────────────────
+      # ── 5. Write Job Summary ──────────────────────────────────────────────
+      - name: Write test summary
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // ── Parse Vitest JSON ─────────────────────────────────────────
+            let vtTotal = 0, vtPass = 0, vtFail = 0, vtSkip = 0;
+            const vtFailRows = [];
+            try {
+              const raw = JSON.parse(fs.readFileSync('reports/vitest-results.json', 'utf8'));
+              for (const suite of (raw.testResults || [])) {
+                for (const t of (suite.assertionResults || [])) {
+                  vtTotal++;
+                  if (t.status === 'passed')  vtPass++;
+                  else if (t.status === 'failed') {
+                    vtFail++;
+                    const label = [...(t.ancestorTitles || []), t.title].join(' › ');
+                    const err   = (t.failureMessages || []).join(' ').replace(/\n/g, ' ').slice(0, 120);
+                    vtFailRows.push(`| ❌ | \`${label}\` | ${err} |`);
+                  } else { vtSkip++; }
+                }
+              }
+            } catch (e) { console.log('Vitest parse:', e.message); }
+
+            // ── Parse pytest XML ──────────────────────────────────────────
+            let pyTotal = 0, pyPass = 0, pyFail = 0, pySkip = 0;
+            const pyFailRows = [];
+            try {
+              const xml = fs.readFileSync('reports/pytest-results.xml', 'utf8');
+              const suiteM = xml.match(/<testsuite[^>]+tests="(\d+)"[^>]*failures="(\d+)"[^>]*errors="(\d+)"[^>]*skipped="(\d+)"/);
+              if (suiteM) {
+                pyTotal = parseInt(suiteM[1]);
+                pyFail  = parseInt(suiteM[2]) + parseInt(suiteM[3]);
+                pySkip  = parseInt(suiteM[4]);
+                pyPass  = pyTotal - pyFail - pySkip;
+              }
+              const cases = [...xml.matchAll(/<testcase([^>]+)>([\s\S]*?)<\/testcase>/g)];
+              for (const tc of cases) {
+                if (!/<failure|<error/.test(tc[2])) continue;
+                const nameM  = tc[1].match(/name="([^"]+)"/);
+                const classM = tc[1].match(/classname="([^"]+)"/);
+                const msgM   = tc[2].match(/message="([^"]*)"/);
+                const label  = `${classM ? classM[1] : ''}.${nameM ? nameM[1] : '?'}`;
+                const err    = (msgM ? msgM[1] : '').replace(/\n/g, ' ').slice(0, 120);
+                pyFailRows.push(`| ❌ | \`${label}\` | ${err} |`);
+              }
+            } catch (e) { console.log('Pytest parse:', e.message); }
+
+            // ── Build summary markdown ────────────────────────────────────
+            const status = (vtFail + pyFail) === 0 ? '✅ All tests passed' : `❌ ${vtFail + pyFail} test(s) failed`;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            let md = `# 🧪 Test Suite Summary\n\n`;
+            md += `**${status}** — run [#${context.runNumber}](${runUrl}) on \`${context.ref.replace('refs/heads/','')}\`\n\n`;
+
+            md += `## 📊 Results\n\n`;
+            md += `| Suite | Total | ✅ Passed | ❌ Failed | ⏭ Skipped |\n`;
+            md += `|-------|------:|----------:|----------:|----------:|\n`;
+            md += `| Component (Vitest) | ${vtTotal} | ${vtPass} | ${vtFail} | ${vtSkip} |\n`;
+            md += `| E2E (Selenium) | ${pyTotal} | ${pyPass} | ${pyFail} | ${pySkip} |\n`;
+            md += `| **Total** | **${vtTotal+pyTotal}** | **${vtPass+pyPass}** | **${vtFail+pyFail}** | **${vtSkip+pySkip}** |\n\n`;
+
+            if (vtFailRows.length > 0) {
+              md += `## ❌ Vitest Failures\n\n`;
+              md += `| | Test | Error |\n|--|------|-------|\n`;
+              md += vtFailRows.join('\n') + '\n\n';
+            }
+
+            if (pyFailRows.length > 0) {
+              md += `## ❌ Selenium Failures\n\n`;
+              md += `| | Test | Error |\n|--|------|-------|\n`;
+              md += pyFailRows.join('\n') + '\n\n';
+            }
+
+            if ((vtFail + pyFail) === 0) {
+              md += `> 🎉 Great job! Every test in the suite passed.\n`;
+            }
+
+            await core.summary.addRaw(md).write();
+
+      # ── 7. Upload artifacts ────────────────────────────────────────────────
       - name: Upload test report (Excel)
         if: always()
         uses: actions/upload-artifact@v4
@@ -120,7 +203,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      # ── 6. Add inline annotations for each test failure ───────────────────
+      # ── 8. Add inline annotations for each test failure ───────────────────
       - name: Annotate failures
         if: always()
         uses: actions/github-script@v7
@@ -166,7 +249,7 @@ jobs:
               core.warning(`${allFailed.length} test(s) failed. See annotations above.`);
             }
 
-      # ── 7. Auto-create / update GitHub Issues for failures ─────────────────
+      # ── 9. Auto-create / update GitHub Issues for failures ─────────────────
       - name: Create or update GitHub Issues for failures
         if: always()
         uses: actions/github-script@v7
@@ -251,7 +334,7 @@ jobs:
               }
             }
 
-      # ── 8. Final status ───────────────────────────────────────────────────
+      # ── 10. Final status ───────────────────────────────────────────────────
       - name: Fail job if any suite failed
         if: always()
         run: |
