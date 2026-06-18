@@ -107,77 +107,261 @@ jobs:
           script: |
             const fs = require('fs');
 
+            const runUrl   = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const commitUrl= `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}`;
+            const branch   = context.ref.replace('refs/heads/', '');
+            const shortSha = context.sha.slice(0, 7);
+            const now      = new Date().toUTCString();
+
+            // ── Helpers ───────────────────────────────────────────────────
+            const fmtMs = ms => ms == null ? '—' : ms < 1000 ? `${ms}ms` : `${(ms/1000).toFixed(2)}s`;
+            const passBar = (pass, total) => {
+              if (total === 0) return '`no tests`';
+              const pct = Math.round((pass / total) * 20);
+              return '`' + '█'.repeat(pct) + '░'.repeat(20 - pct) + '`' + ` ${Math.round(pass/total*100)}%`;
+            };
+            const statusIcon = (pass, fail, skip) =>
+              fail > 0 ? '❌' : skip > 0 && pass === 0 ? '⏭' : '✅';
+
             // ── Parse Vitest JSON ─────────────────────────────────────────
             let vtTotal = 0, vtPass = 0, vtFail = 0, vtSkip = 0;
-            const vtFailRows = [];
+            let vtDuration = null;
+            const vtSuites  = [];   // per-file breakdown
+            const vtAllTests = [];  // every individual test
+
             try {
               const raw = JSON.parse(fs.readFileSync('reports/vitest-results.json', 'utf8'));
+              vtDuration = raw.testResults
+                ? raw.testResults.reduce((s, r) => s + (r.endTime - r.startTime), 0)
+                : null;
+
               for (const suite of (raw.testResults || [])) {
+                const fileName = suite.name.replace(process.cwd() + '/', '');
+                let sPass = 0, sFail = 0, sSkip = 0;
+                const suiteDur = suite.endTime - suite.startTime;
+
                 for (const t of (suite.assertionResults || [])) {
-                  vtTotal++;
-                  if (t.status === 'passed')  vtPass++;
-                  else if (t.status === 'failed') {
-                    vtFail++;
-                    const label = [...(t.ancestorTitles || []), t.title].join(' › ');
-                    const err   = (t.failureMessages || []).join(' ').replace(/\n/g, ' ').slice(0, 120);
-                    vtFailRows.push(`| ❌ | \`${label}\` | ${err} |`);
-                  } else { vtSkip++; }
+                  vtTotal++; const dur = t.duration ?? null;
+                  const label = [...(t.ancestorTitles || []), t.title].join(' › ');
+                  if (t.status === 'passed')       { vtPass++; sPass++; }
+                  else if (t.status === 'failed')  { vtFail++; sFail++; }
+                  else                             { vtSkip++; sSkip++; }
+                  vtAllTests.push({ label, status: t.status, dur,
+                    file: fileName,
+                    error: t.status === 'failed'
+                      ? (t.failureMessages || []).join('\n').slice(0, 600)
+                      : null });
                 }
+                vtSuites.push({ file: fileName, sPass, sFail, sSkip,
+                  total: sPass+sFail+sSkip, dur: suiteDur });
               }
-            } catch (e) { console.log('Vitest parse:', e.message); }
+            } catch (e) { console.log('Vitest parse error:', e.message); }
 
             // ── Parse pytest XML ──────────────────────────────────────────
             let pyTotal = 0, pyPass = 0, pyFail = 0, pySkip = 0;
-            const pyFailRows = [];
+            let pyDuration = null;
+            const pySuites   = [];
+            const pyAllTests = [];
+
             try {
               const xml = fs.readFileSync('reports/pytest-results.xml', 'utf8');
-              const suiteM = xml.match(/<testsuite[^>]+tests="(\d+)"[^>]*failures="(\d+)"[^>]*errors="(\d+)"[^>]*skipped="(\d+)"/);
+              const suiteM = xml.match(/<testsuite[^>]+tests="(\d+)"[^>]*failures="(\d+)"[^>]*errors="(\d+)"[^>]*skipped="(\d+)"(?:[^>]*time="([^"]*)")?/);
               if (suiteM) {
                 pyTotal = parseInt(suiteM[1]);
                 pyFail  = parseInt(suiteM[2]) + parseInt(suiteM[3]);
                 pySkip  = parseInt(suiteM[4]);
                 pyPass  = pyTotal - pyFail - pySkip;
+                pyDuration = suiteM[5] ? parseFloat(suiteM[5]) * 1000 : null;
               }
+
+              const classMap = {};
               const cases = [...xml.matchAll(/<testcase([^>]+)>([\s\S]*?)<\/testcase>/g)];
               for (const tc of cases) {
-                if (!/<failure|<error/.test(tc[2])) continue;
                 const nameM  = tc[1].match(/name="([^"]+)"/);
                 const classM = tc[1].match(/classname="([^"]+)"/);
+                const timeM  = tc[1].match(/time="([^"]+)"/);
+                const name   = nameM  ? nameM[1]  : '?';
+                const cls    = classM ? classM[1] : 'unknown';
+                const dur    = timeM  ? parseFloat(timeM[1]) * 1000 : null;
+                const isFail = /<failure|<error/.test(tc[2]);
+                const isSkip = /<skipped/.test(tc[2]);
                 const msgM   = tc[2].match(/message="([^"]*)"/);
-                const label  = `${classM ? classM[1] : ''}.${nameM ? nameM[1] : '?'}`;
-                const err    = (msgM ? msgM[1] : '').replace(/\n/g, ' ').slice(0, 120);
-                pyFailRows.push(`| ❌ | \`${label}\` | ${err} |`);
+                const textM  = tc[2].match(/<(?:failure|error)[^>]*>([\s\S]*?)<\/(?:failure|error)>/);
+                const errMsg = msgM ? msgM[1] : '';
+                const errTxt = textM ? textM[1].trim().slice(0, 600) : '';
+
+                if (!classMap[cls]) classMap[cls] = { pass:0, fail:0, skip:0, dur:0 };
+                if (isFail)      classMap[cls].fail++;
+                else if (isSkip) classMap[cls].skip++;
+                else             classMap[cls].pass++;
+                classMap[cls].dur += dur || 0;
+
+                pyAllTests.push({ label: `${cls} :: ${name}`,
+                  status: isFail ? 'failed' : isSkip ? 'skipped' : 'passed',
+                  dur, file: 'tests/e2e',
+                  error: isFail ? (errMsg + (errTxt ? '\n' + errTxt : '')).slice(0, 600) : null });
               }
-            } catch (e) { console.log('Pytest parse:', e.message); }
+              for (const [cls, c] of Object.entries(classMap)) {
+                pySuites.push({ file: cls, sPass: c.pass, sFail: c.fail, sSkip: c.skip,
+                  total: c.pass+c.fail+c.skip, dur: c.dur });
+              }
+            } catch (e) { console.log('Pytest parse error:', e.message); }
 
-            // ── Build summary markdown ────────────────────────────────────
-            const status = (vtFail + pyFail) === 0 ? '✅ All tests passed' : `❌ ${vtFail + pyFail} test(s) failed`;
-            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            // ── Parse coverage (if present) ───────────────────────────────
+            let coverageSummary = null;
+            try {
+              const cov = JSON.parse(fs.readFileSync('reports/coverage/coverage-summary.json', 'utf8'));
+              const t   = cov.total;
+              coverageSummary = {
+                lines:      t.lines?.pct ?? '—',
+                statements: t.statements?.pct ?? '—',
+                functions:  t.functions?.pct ?? '—',
+                branches:   t.branches?.pct ?? '—',
+              };
+            } catch (_) {}
 
-            let md = `# 🧪 Test Suite Summary\n\n`;
-            md += `**${status}** — run [#${context.runNumber}](${runUrl}) on \`${context.ref.replace('refs/heads/','')}\`\n\n`;
+            // ── Aggregate ─────────────────────────────────────────────────
+            const grandTotal = vtTotal + pyTotal;
+            const grandPass  = vtPass  + pyPass;
+            const grandFail  = vtFail  + pyFail;
+            const grandSkip  = vtSkip  + pySkip;
+            const overallIcon = grandFail > 0 ? '❌' : '✅';
+            const overallLabel = grandFail > 0
+              ? `${grandFail} test${grandFail>1?'s':''} FAILED`
+              : 'All tests PASSED';
 
-            md += `## 📊 Results\n\n`;
-            md += `| Suite | Total | ✅ Passed | ❌ Failed | ⏭ Skipped |\n`;
-            md += `|-------|------:|----------:|----------:|----------:|\n`;
-            md += `| Component (Vitest) | ${vtTotal} | ${vtPass} | ${vtFail} | ${vtSkip} |\n`;
-            md += `| E2E (Selenium) | ${pyTotal} | ${pyPass} | ${pyFail} | ${pySkip} |\n`;
-            md += `| **Total** | **${vtTotal+pyTotal}** | **${vtPass+pyPass}** | **${vtFail+pyFail}** | **${vtSkip+pySkip}** |\n\n`;
+            // ── Build markdown ─────────────────────────────────────────────
+            let md = '';
 
-            if (vtFailRows.length > 0) {
-              md += `## ❌ Vitest Failures\n\n`;
-              md += `| | Test | Error |\n|--|------|-------|\n`;
-              md += vtFailRows.join('\n') + '\n\n';
+            // Header
+            md += `# ${overallIcon} AgriDirect Web — Test Suite Report\n\n`;
+            md += `> **${overallLabel}** &nbsp;|&nbsp; `;
+            md += `Run [#${context.runNumber}](${runUrl}) &nbsp;|&nbsp; `;
+            md += `Branch \`${branch}\` &nbsp;|&nbsp; `;
+            md += `Commit [\`${shortSha}\`](${commitUrl}) &nbsp;|&nbsp; `;
+            md += `${now}\n\n`;
+            md += `---\n\n`;
+
+            // Overall scoreboard
+            md += `## 📊 Overall Results\n\n`;
+            md += `| Metric | Value |\n|--------|-------|\n`;
+            md += `| 🧪 Total Tests | **${grandTotal}** |\n`;
+            md += `| ✅ Passed | **${grandPass}** |\n`;
+            md += `| ❌ Failed | **${grandFail}** |\n`;
+            md += `| ⏭ Skipped | **${grandSkip}** |\n`;
+            md += `| 📈 Pass Rate | ${passBar(grandPass, grandTotal)} |\n`;
+            if (vtDuration != null) md += `| ⏱ Vitest Duration | ${fmtMs(vtDuration)} |\n`;
+            if (pyDuration != null) md += `| ⏱ Selenium Duration | ${fmtMs(pyDuration)} |\n`;
+            md += `\n`;
+
+            // Suite comparison table
+            md += `## 🗂 Suite Breakdown\n\n`;
+            md += `| Suite | Total | ✅ | ❌ | ⏭ | Pass Rate | Duration |\n`;
+            md += `|-------|------:|--:|--:|--:|-----------|----------|\n`;
+            md += `| 🔬 Component Tests (Vitest) | ${vtTotal} | ${vtPass} | ${vtFail} | ${vtSkip} | ${passBar(vtPass,vtTotal)} | ${fmtMs(vtDuration)} |\n`;
+            md += `| 🌐 E2E Tests (Selenium) | ${pyTotal} | ${pyPass} | ${pyFail} | ${pySkip} | ${passBar(pyPass,pyTotal)} | ${fmtMs(pyDuration)} |\n`;
+            md += `| **Grand Total** | **${grandTotal}** | **${grandPass}** | **${grandFail}** | **${grandSkip}** | ${passBar(grandPass,grandTotal)} | — |\n\n`;
+
+            // Coverage
+            if (coverageSummary) {
+              md += `## 🛡 Code Coverage\n\n`;
+              md += `| Metric | % |\n|--------|---|\n`;
+              md += `| Lines | ${coverageSummary.lines}% |\n`;
+              md += `| Statements | ${coverageSummary.statements}% |\n`;
+              md += `| Functions | ${coverageSummary.functions}% |\n`;
+              md += `| Branches | ${coverageSummary.branches}% |\n\n`;
             }
 
-            if (pyFailRows.length > 0) {
-              md += `## ❌ Selenium Failures\n\n`;
-              md += `| | Test | Error |\n|--|------|-------|\n`;
-              md += pyFailRows.join('\n') + '\n\n';
+            // ── Vitest: per-file breakdown ────────────────────────────────
+            md += `## 🔬 Component Tests — File Breakdown\n\n`;
+            if (vtSuites.length === 0) {
+              md += `_No component test results found._\n\n`;
+            } else {
+              md += `| File | Total | ✅ | ❌ | ⏭ | Duration |\n`;
+              md += `|------|------:|--:|--:|--:|---------|\n`;
+              for (const s of vtSuites) {
+                const icon = statusIcon(s.sPass, s.sFail, s.sSkip);
+                const shortFile = s.file.replace(/^tests\/components\//, '');
+                md += `| ${icon} \`${shortFile}\` | ${s.total} | ${s.sPass} | ${s.sFail} | ${s.sSkip} | ${fmtMs(s.dur)} |\n`;
+              }
+              md += `\n`;
+
+              // All vitest tests
+              md += `<details>\n<summary>📋 All Component Tests (${vtTotal} tests)</summary>\n\n`;
+              md += `| Status | Test Name | Duration |\n|--------|-----------|----------|\n`;
+              for (const t of vtAllTests) {
+                const icon = t.status === 'passed' ? '✅' : t.status === 'failed' ? '❌' : '⏭';
+                md += `| ${icon} | ${t.label} | ${fmtMs(t.dur)} |\n`;
+              }
+              md += `\n</details>\n\n`;
             }
 
-            if ((vtFail + pyFail) === 0) {
-              md += `> 🎉 Great job! Every test in the suite passed.\n`;
+            // ── Vitest failures detail ────────────────────────────────────
+            const vtFailed = vtAllTests.filter(t => t.status === 'failed');
+            if (vtFailed.length > 0) {
+              md += `## ❌ Component Test Failures\n\n`;
+              for (const t of vtFailed) {
+                md += `<details>\n<summary>❌ <strong>${t.label}</strong></summary>\n\n`;
+                md += `**File:** \`${t.file}\`\n\n`;
+                if (t.error) {
+                  md += `\`\`\`\n${t.error}\n\`\`\`\n`;
+                }
+                md += `</details>\n\n`;
+              }
+            }
+
+            // ── Selenium: per-class breakdown ─────────────────────────────
+            md += `## 🌐 E2E Tests — Class Breakdown\n\n`;
+            if (pySuites.length === 0) {
+              md += `_No E2E test results found._\n\n`;
+            } else {
+              md += `| Class | Total | ✅ | ❌ | ⏭ | Duration |\n`;
+              md += `|-------|------:|--:|--:|--:|---------|\n`;
+              for (const s of pySuites) {
+                const icon = statusIcon(s.sPass, s.sFail, s.sSkip);
+                md += `| ${icon} \`${s.file}\` | ${s.total} | ${s.sPass} | ${s.sFail} | ${s.sSkip} | ${fmtMs(s.dur)} |\n`;
+              }
+              md += `\n`;
+
+              md += `<details>\n<summary>📋 All E2E Tests (${pyTotal} tests)</summary>\n\n`;
+              md += `| Status | Test Name | Duration |\n|--------|-----------|----------|\n`;
+              for (const t of pyAllTests) {
+                const icon = t.status === 'passed' ? '✅' : t.status === 'failed' ? '❌' : '⏭';
+                md += `| ${icon} | ${t.label} | ${fmtMs(t.dur)} |\n`;
+              }
+              md += `\n</details>\n\n`;
+            }
+
+            // ── Selenium failure detail ───────────────────────────────────
+            const pyFailed = pyAllTests.filter(t => t.status === 'failed');
+            if (pyFailed.length > 0) {
+              md += `## ❌ E2E Test Failures\n\n`;
+              for (const t of pyFailed) {
+                md += `<details>\n<summary>❌ <strong>${t.label}</strong></summary>\n\n`;
+                if (t.error) {
+                  md += `\`\`\`\n${t.error}\n\`\`\`\n`;
+                }
+                md += `</details>\n\n`;
+              }
+            }
+
+            // ── Environment & artifact info ───────────────────────────────
+            md += `---\n\n`;
+            md += `## ⚙️ Environment\n\n`;
+            md += `| Key | Value |\n|-----|-------|\n`;
+            md += `| Runner OS | \`ubuntu-latest\` |\n`;
+            md += `| Node.js | \`20\` |\n`;
+            md += `| Python | \`3.11\` |\n`;
+            md += `| Triggered by | \`${context.eventName}\` |\n`;
+            md += `| Actor | [@${context.actor}](${context.serverUrl}/${context.actor}) |\n`;
+            md += `| Workflow | [${context.workflow}](${runUrl}) |\n`;
+            md += `| Artifacts | [Download test report & screenshots](${runUrl}#artifacts) |\n\n`;
+
+            // Footer
+            if (grandFail === 0) {
+              md += `> 🎉 **Perfect run!** Every single test passed. Great work!\n`;
+            } else {
+              md += `> ⚠️ **${grandFail} test(s) failed.** Check the failure details above and the [run annotations](${runUrl}).\n`;
             }
 
             await core.summary.addRaw(md).write();
