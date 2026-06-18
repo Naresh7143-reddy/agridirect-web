@@ -6,8 +6,6 @@ import { Search } from 'lucide-react';
 import { productsApi } from '@/lib/api';
 import ProductCard from '@/components/common/ProductCard';
 
-export const dynamic = 'force-dynamic';
-
 export default function BrowsePage() {
   return (
     <Suspense fallback={<div className="flex justify-center py-20"><div className="text-4xl">⏳</div></div>}>

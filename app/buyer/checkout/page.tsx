@@ -236,7 +236,7 @@ export default function CheckoutPage() {
             <div className="flex justify-between"><span>Delivery</span><span>{delivery === 0 ? 'FREE' : formatINR(delivery)}</span></div>
             <div className="flex justify-between"><span>Platform fee</span><span>{formatINR(PLATFORM_FEE)}</span></div>
             <div className="flex justify-between text-xs text-ink-3 -mt-1 mb-1">
-              <span>includes 2% platform charge</span>
+              <span>flat ₹10 platform fee</span>
               <span></span>
             </div>
           </div>

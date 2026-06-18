@@ -9,8 +9,6 @@ import Cookies from 'js-cookie';
 import { getFirebaseAuth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase';
 import { authApi, saveAuthCookies } from '@/lib/api';
 
-export const dynamic = 'force-dynamic';
-
 declare global {
   interface Window { recaptchaVerifier?: any; confirmationResult?: any; }
 }

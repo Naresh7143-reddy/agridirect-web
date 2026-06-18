@@ -8,8 +8,6 @@ import { User, MapPin, Package, Bell, HelpCircle, FileText, Shield, LogOut, Chev
 import { toast } from 'sonner';
 import client from '@/lib/api';
 
-export const dynamic = 'force-dynamic';
-
 const MENU = [
   { icon: Package,    label: 'My orders',          href: '/buyer/orders' },
   { icon: MapPin,     label: 'Saved addresses',    href: '/buyer/addresses' },
@@ -36,7 +34,8 @@ export default function ProfilePage() {
     router.push('/');
   };
 
-  const initials = (user?.name ?? 'U').split(' ').slice(0, 2).map((p: string) => p[0]).join('').toUpperCase();
+  const rawName = user?.name || 'U';
+  const initials = rawName.split(' ').slice(0, 2).map((p: string) => (p[0] ?? '').toUpperCase()).filter(Boolean).join('') || '?';
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">

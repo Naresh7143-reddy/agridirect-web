@@ -8,8 +8,6 @@ import { toast } from 'sonner';
 import Cookies from 'js-cookie';
 import { authApi, saveAuthCookies } from '@/lib/api';
 
-export const dynamic = 'force-dynamic';
-
 type Role = 'BUYER' | 'FARMER' | 'DELIVERY';
 
 const ROLES: { key: Role; icon: any; title: string; desc: string; color: string }[] = [

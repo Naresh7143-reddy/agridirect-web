@@ -4,8 +4,6 @@ import Link from 'next/link';
 import { ArrowLeft, Mail, Phone, MessageCircle, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
-export const dynamic = 'force-dynamic';
-
 const FAQS = [
   {
     q: 'How do I track my order?',

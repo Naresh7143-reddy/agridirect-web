@@ -3,8 +3,6 @@
 import Link from 'next/link';
 import { ArrowLeft, Bell } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
-
 export default function NotificationsPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">

@@ -6,8 +6,6 @@ import { ArrowLeft, MapPin, Loader2, Trash2, Star, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { buyerApi } from '@/lib/api';
 
-export const dynamic = 'force-dynamic';
-
 export default function AddressesPage() {
   const [addresses, setAddresses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

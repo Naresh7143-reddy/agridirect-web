@@ -83,7 +83,7 @@ export default function CartPage() {
           <h2 className="font-extrabold text-xl mb-2">Order summary</h2>
           <Row label="Subtotal" value={formatINR(total)} />
           <Row label="Delivery" value={delivery === 0 ? 'FREE' : formatINR(delivery)} />
-          <Row label="Platform fee (2%)" value={formatINR(PLATFORM_FEE)} />
+          <Row label="Platform fee" value={formatINR(PLATFORM_FEE)} />
           {delivery > 0 && total < 500 && (
             <div className="bg-secondary/10 text-ink-1 rounded-xl p-3 text-sm">
               Add <strong>{formatINR(500 - total)}</strong> more for free delivery 🚚
