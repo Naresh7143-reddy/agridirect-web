@@ -2,31 +2,42 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Sparkles, Loader2, Camera, X, ImageIcon } from 'lucide-react';
-import Image from 'next/image';
+import { Send, Sparkles, Loader2, Camera, X, ImageIcon, ChevronDown } from 'lucide-react';
 import { aiApi } from '@/lib/api';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   text: string;
-  image?: string; // data URL for display
+  image?: string;
 }
 
-const QUICK_PROMPTS = [
-  { emoji: '🐛', label: 'Identify disease', prompt: 'What disease does my tomato plant have? How do I treat it?' },
-  { emoji: '💰', label: 'Best selling price', prompt: 'What is the current market price for tomato in Andhra Pradesh?' },
-  { emoji: '🌾', label: 'Crop advice', prompt: 'What crops should I grow this season in Andhra Pradesh?' },
-  { emoji: '☀️', label: 'Weather tips', prompt: 'How do I protect my crops from summer heat in Telangana?' },
+const LANGUAGES = [
+  { code: 'English', label: 'English', flag: '🇬🇧' },
+  { code: 'Telugu',  label: 'తెలుగు',  flag: '🇮🇳' },
+  { code: 'Hindi',   label: 'हिन्दी',   flag: '🇮🇳' },
+  { code: 'Tamil',   label: 'தமிழ்',   flag: '🇮🇳' },
 ];
 
+const QUICK_PROMPTS = [
+  { emoji: '🐛', label: 'Identify disease',    prompt: 'What disease does my tomato plant have? How do I treat it?' },
+  { emoji: '💰', label: 'Best selling price',  prompt: 'What is the current market price for tomato in Andhra Pradesh?' },
+  { emoji: '🌾', label: 'Crop advice',         prompt: 'What crops should I grow this season in Andhra Pradesh?' },
+  { emoji: '☀️', label: 'Weather tips',        prompt: 'How do I protect my crops from summer heat in Telangana?' },
+];
+
+const WELCOME: Record<string, string> = {
+  English: "Namaste! 🌱 I'm Krishi AI, your farming assistant. Ask me about crop diseases, market prices, weather tips, government schemes — anything farming.\n\n📸 You can also upload a photo of your plant and I'll help identify diseases!",
+  Telugu:  "నమస్కారం! 🌱 నేను కృషి AI, మీ వ్యవసాయ సహాయకుడిని. పంట వ్యాధులు, మార్కెట్ ధరలు, వాతావరణ చిట్కాలు — ఏదైనా అడగండి.\n\n📸 మీ మొక్క ఫోటో పంపండి, వ్యాధి గుర్తించడంలో సహాయం చేస్తాను!",
+  Hindi:   "नमस्ते! 🌱 मैं कृषि AI हूँ, आपका कृषि सहायक। फसल रोग, बाज़ार भाव, मौसम सुझाव — कुछ भी पूछें।\n\n📸 अपनी फसल की फ़ोटो भेजें, मैं रोग पहचानने में मदद करूँगा!",
+  Tamil:   "வணக்கம்! 🌱 நான் கிருஷி AI, உங்கள் வேளாண் உதவியாளர். பயிர் நோய்கள், சந்தை விலை, வானிலை குறிப்புகள் — எதுவும் கேளுங்கள்.\n\n📸 உங்கள் செடியின் படம் அனுப்புங்கள், நோயை அடையாளம் காண உதவுவேன்!",
+};
+
 export default function AIChatPage() {
+  const [language, setLanguage] = useState('English');
+  const [langOpen, setLangOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      text: "Namaste! 🌱 I'm Krishi AI, your farming assistant. Ask me about crop diseases, market prices, weather tips, government schemes — anything farming.\n\n📸 You can also upload a photo of your plant and I'll help identify diseases!",
-    },
+    { id: 'welcome', role: 'assistant', text: WELCOME['English'] },
   ]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
@@ -39,59 +50,46 @@ export default function AIChatPage() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
+  const switchLanguage = (lang: string) => {
+    setLanguage(lang);
+    setLangOpen(false);
+    setMessages([{ id: 'welcome-' + lang, role: 'assistant', text: WELCOME[lang] }]);
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image must be under 5 MB');
-      return;
-    }
+    if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5 MB'); return; }
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
       setImagePreview(dataUrl);
-      // Extract pure base64 (strip "data:image/...;base64," prefix)
       setImageBase64(dataUrl.split(',')[1]);
-      if (!input.trim()) {
-        setInput('Identify any diseases or problems in my crop shown in this photo.');
-      }
+      if (!input.trim()) setInput('Identify any diseases or problems in my crop shown in this photo.');
     };
     reader.readAsDataURL(file);
-    // Reset so same file can be re-selected
     e.target.value = '';
   };
 
-  const clearImage = () => {
-    setImagePreview(null);
-    setImageBase64(null);
-  };
+  const clearImage = () => { setImagePreview(null); setImageBase64(null); };
 
   const send = async (text?: string) => {
     const msg = (text ?? input).trim();
     if (!msg && !imagePreview) return;
-
     const finalText = msg || 'Identify any diseases or problems in my crop shown in this photo.';
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      text: finalText,
-      image: imagePreview ?? undefined,
-    };
-    const history = messages
-      .filter((m) => m.id !== 'welcome')
-      .map((m) => ({ role: m.role, content: m.text }));
-
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', text: finalText, image: imagePreview ?? undefined };
+    const history = messages.filter((m) => !m.id.startsWith('welcome')).map((m) => ({ role: m.role, content: m.text }));
     setMessages((m) => [...m, userMsg]);
     setInput('');
     const sentImage = imageBase64;
     clearImage();
     setTyping(true);
-
     try {
-      const res = await aiApi.chat(finalText, 'English', history, sentImage ?? undefined);
+      const res = await aiApi.chat(finalText, language, history, sentImage ?? undefined);
       const reply: string =
         (res?.data && typeof res.data === 'object' && res.data.reply) ||
         (typeof res?.data === 'string' && res.data) ||
+        res?.reply ||
         'Sorry, I could not generate a reply.';
       setMessages((m) => [...m, { id: Date.now().toString() + 'a', role: 'assistant', text: reply }]);
     } catch (e: any) {
@@ -102,23 +100,50 @@ export default function AIChatPage() {
     }
   };
 
+  const activeLang = LANGUAGES.find((l) => l.code === language)!;
+
   return (
     <div className="-mt-8 -mx-4 sm:-mx-6 lg:-mx-8">
       <div className="flex flex-col h-[calc(100vh-4rem-2rem)]">
         {/* Header */}
-        <div className="bg-gradient-to-r from-primary to-primary-dark text-white py-6 px-6">
-          <div className="container-x flex items-center gap-3">
-            <div className="size-12 rounded-2xl bg-white/20 flex items-center justify-center">
-              <Sparkles className="size-6" />
+        <div className="bg-gradient-to-r from-primary to-primary-dark text-white py-4 px-6">
+          <div className="container-x flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="size-11 rounded-2xl bg-white/20 flex items-center justify-center">
+                <Sparkles className="size-5" />
+              </div>
+              <div>
+                <h1 className="text-xl font-extrabold">Krishi AI</h1>
+                <p className="text-xs text-white/70">Your farming assistant</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-extrabold">Krishi AI</h1>
-              <p className="text-sm text-white/80">Your farming assistant · Powered by Groq Llama 3</p>
+
+            {/* Language selector */}
+            <div className="relative">
+              <button
+                onClick={() => setLangOpen((o) => !o)}
+                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 rounded-full px-3 py-1.5 text-sm font-semibold transition"
+              >
+                {activeLang.flag} {activeLang.label} <ChevronDown className="size-3" />
+              </button>
+              {langOpen && (
+                <div className="absolute right-0 top-10 bg-white rounded-2xl shadow-xl py-2 min-w-[140px] z-50">
+                  {LANGUAGES.map((l) => (
+                    <button
+                      key={l.code}
+                      onClick={() => switchLanguage(l.code)}
+                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm font-semibold hover:bg-bg transition text-left ${l.code === language ? 'text-primary' : 'text-ink-1'}`}
+                    >
+                      {l.flag} {l.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Chat */}
+        {/* Chat messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto py-6">
           <div className="container-x max-w-3xl space-y-4">
             <AnimatePresence>
@@ -145,7 +170,7 @@ export default function AIChatPage() {
                         ? 'bg-primary text-white rounded-br-sm'
                         : 'bg-white shadow-card rounded-bl-sm'
                     }`}>
-                      <p className="whitespace-pre-wrap leading-relaxed">{m.text}</p>
+                      <p className="whitespace-pre-wrap leading-relaxed text-sm">{m.text}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -165,9 +190,9 @@ export default function AIChatPage() {
           </div>
         </div>
 
-        {/* Quick prompts */}
+        {/* Quick prompts — show only on first load */}
         {messages.length <= 1 && (
-          <div className="container-x max-w-3xl pb-4 px-4">
+          <div className="container-x max-w-3xl pb-3 px-4">
             <div className="flex gap-2 flex-wrap">
               {QUICK_PROMPTS.map((q) => (
                 <button
@@ -193,7 +218,7 @@ export default function AIChatPage() {
           <div className="container-x max-w-3xl px-4 pb-2">
             <div className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-2xl px-3 py-2">
               <ImageIcon className="size-4 text-primary flex-shrink-0" />
-              <div className="relative w-14 h-14 flex-shrink-0 rounded-xl overflow-hidden border border-primary/20">
+              <div className="relative w-12 h-12 flex-shrink-0 rounded-xl overflow-hidden border border-primary/20">
                 <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
               </div>
               <span className="text-sm text-ink-2 flex-1">Photo attached — tap Send to analyze for diseases</span>
@@ -204,39 +229,29 @@ export default function AIChatPage() {
           </div>
         )}
 
-        {/* Input */}
-        <div className="bg-white border-t border-border py-4 px-4">
+        {/* Input bar */}
+        <div className="bg-white border-t border-border py-3 px-4">
           <div className="container-x max-w-3xl flex gap-2 items-center">
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleImageSelect}
-              className="hidden"
-            />
-            {/* Camera button */}
+            <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleImageSelect} className="hidden" />
             <button
               onClick={() => fileInputRef.current?.click()}
               title="Upload crop photo for disease detection"
-              className="size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition flex-shrink-0"
+              className="size-11 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition flex-shrink-0"
             >
               <Camera className="size-5" />
             </button>
-
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()}
-              placeholder={imagePreview ? 'Ask about this photo…' : 'Ask about crops, prices, weather…'}
-              className="flex-1 px-5 py-3 rounded-full bg-bg border-2 border-transparent focus:border-primary outline-none"
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && send()}
+              placeholder={imagePreview ? 'Ask about this photo…' : language === 'Telugu' ? 'పంట గురించి అడగండి…' : language === 'Hindi' ? 'फसल के बारे में पूछें…' : language === 'Tamil' ? 'பயிர் பற்றி கேளுங்கள்…' : 'Ask about crops, diseases, prices…'}
+              className="flex-1 px-5 py-3 rounded-full bg-bg border-2 border-transparent focus:border-primary outline-none text-sm"
             />
             <button
               onClick={() => send()}
               disabled={(!input.trim() && !imagePreview) || typing}
-              className="size-12 rounded-full bg-primary text-white flex items-center justify-center hover:scale-105 transition disabled:opacity-50 disabled:hover:scale-100 flex-shrink-0"
+              className="size-11 rounded-full bg-primary text-white flex items-center justify-center hover:scale-105 transition disabled:opacity-50 disabled:hover:scale-100 flex-shrink-0"
             >
               <Send className="size-5" />
             </button>
