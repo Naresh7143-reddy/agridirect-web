@@ -42,6 +42,24 @@ export default function FarmerHome() {
         <StatCard icon={Star} color="text-secondary" bg="bg-secondary/10" label="Rating" value={(stats.averageRating ?? 0).toFixed(1)} loading={loading} />
       </div>
 
+      {/* Orders breakdown */}
+      {!loading && (stats.totalOrders ?? 0) > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="card text-center py-4">
+            <div className="text-2xl font-extrabold text-yellow-600">{stats.pendingOrders ?? 0}</div>
+            <div className="text-xs text-ink-2 mt-1">Pending</div>
+          </div>
+          <div className="card text-center py-4">
+            <div className="text-2xl font-extrabold text-blue-600">{stats.acceptedOrders ?? 0}</div>
+            <div className="text-xs text-ink-2 mt-1">Accepted</div>
+          </div>
+          <div className="card text-center py-4">
+            <div className="text-2xl font-extrabold text-success">{stats.deliveredOrders ?? 0}</div>
+            <div className="text-xs text-ink-2 mt-1">Delivered</div>
+          </div>
+        </div>
+      )}
+
       {/* Quick actions */}
       <section>
         <h2 className="text-xl font-extrabold mb-4">Quick actions</h2>
