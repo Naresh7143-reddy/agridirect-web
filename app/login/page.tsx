@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Phone, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import Cookies from 'js-cookie';
 import { getFirebaseAuth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase';
 import { authApi, saveAuthCookies } from '@/lib/api';
 
@@ -17,6 +18,16 @@ declare global {
 export default function LoginPage() {
   const router = useRouter();
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
+
+  useEffect(() => {
+    // Already have tokens → go directly to the right dashboard
+    const role = Cookies.get('user_role');
+    const token = Cookies.get('access_token') || Cookies.get('refresh_token');
+    if (role && token) {
+      const home = role === 'FARMER' ? '/farmer' : role === 'DELIVERY' ? '/delivery' : '/buyer';
+      router.replace(home);
+    }
+  }, []);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);

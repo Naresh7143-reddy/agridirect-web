@@ -6,7 +6,7 @@ export const API_URL =
 
 // Cookie options — secure + sameSite so cookies persist correctly on Vercel (HTTPS)
 export const COOKIE_OPTS: Cookies.CookieAttributes = {
-  expires: 30,
+  expires: 90,
   sameSite: 'Lax',
   secure: process.env.NODE_ENV === 'production',
 };
@@ -86,9 +86,13 @@ client.interceptors.response.use(
       refreshQueue = [];
       original.headers.Authorization = `Bearer ${accessToken}`;
       return client(original);
-    } catch {
-      clearAuthCookies();
-      window.location.href = '/login';
+    } catch (refreshErr: any) {
+      // Only force logout on definitive auth rejection (4xx), not network errors
+      const status = refreshErr?.response?.status;
+      if (status && status >= 400 && status < 500) {
+        clearAuthCookies();
+        window.location.href = '/login';
+      }
       return Promise.reject(err);
     } finally {
       isRefreshing = false;

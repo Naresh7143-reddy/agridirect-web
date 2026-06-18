@@ -8,10 +8,7 @@ import { toast } from 'sonner';
 import { buyerApi } from '@/lib/api';
 import { useCart } from '@/lib/store';
 import { formatINR } from '@/lib/utils';
-
-const DELIVERY_FEE = 40;
-const FREE_THRESHOLD = 500;
-const PLATFORM_FEE = 5;
+import { calcDeliveryFee, estimatedDelivery, PLATFORM_FEE } from '@/lib/delivery';
 
 type PaymentMethod = 'COD' | 'UPI' | 'CARD';
 
@@ -28,9 +25,6 @@ export default function CheckoutPage() {
   const [placing, setPlacing] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newAddr, setNewAddr] = useState({ label: 'Home', line1: '', city: '', state: '', pincode: '' });
-
-  const delivery = total >= FREE_THRESHOLD ? 0 : DELIVERY_FEE;
-  const grand = total + delivery + PLATFORM_FEE;
 
   useEffect(() => {
     if (items.length === 0) {
@@ -115,6 +109,7 @@ export default function CheckoutPage() {
         addressId: selectedAddressId,
         paymentMethod: payment,
         deliveryFee: delivery,
+        platformFee: PLATFORM_FEE,
       });
       clear();
       toast.success('Order placed! 🎉');
@@ -125,6 +120,11 @@ export default function CheckoutPage() {
       setPlacing(false);
     }
   };
+
+  const selectedAddr = addresses.find((a) => a.id === selectedAddressId);
+  const delivery = calcDeliveryFee(total, selectedAddr?.pincode);
+  const grand = total + delivery + PLATFORM_FEE;
+  const eta = estimatedDelivery(selectedAddr?.pincode);
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="size-8 animate-spin text-primary" /></div>;
@@ -235,12 +235,22 @@ export default function CheckoutPage() {
             <div className="flex justify-between"><span>Subtotal</span><span>{formatINR(total)}</span></div>
             <div className="flex justify-between"><span>Delivery</span><span>{delivery === 0 ? 'FREE' : formatINR(delivery)}</span></div>
             <div className="flex justify-between"><span>Platform fee</span><span>{formatINR(PLATFORM_FEE)}</span></div>
+            <div className="flex justify-between text-xs text-ink-3 -mt-1 mb-1">
+              <span>includes 2% platform charge</span>
+              <span></span>
+            </div>
           </div>
           <div className="border-t border-border my-4" />
           <div className="flex justify-between items-baseline">
             <span className="text-lg font-semibold">Total</span>
             <span className="text-2xl font-extrabold text-primary">{formatINR(grand)}</span>
           </div>
+          {eta && (
+            <div className="mt-3 flex items-center gap-2 text-sm bg-success/10 text-success rounded-xl px-3 py-2">
+              <span>🚚</span>
+              <span className="font-semibold">Estimated delivery: {eta}</span>
+            </div>
+          )}
           <button
             onClick={placeOrder}
             disabled={placing || !selectedAddressId}

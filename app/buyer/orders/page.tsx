@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Package, Loader2, ArrowRight, Clock, CheckCircle2, XCircle, Truck } from 'lucide-react';
 import { buyerApi } from '@/lib/api';
 import { formatINR } from '@/lib/utils';
+import { orderETA } from '@/lib/delivery';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: any; label: string }> = {
   PENDING:   { color: 'text-warning', bg: 'bg-warning/10', icon: Clock,         label: 'Order placed' },
@@ -78,6 +79,14 @@ export default function OrdersPage() {
                   <span className="text-xs text-ink-3">Can cancel until farmer accepts</span>
                 )}
               </div>
+              {(() => {
+                const eta = orderETA(o.status, o.createdAt);
+                return eta ? (
+                  <div className="mt-2 flex items-center gap-1.5 text-xs text-primary font-semibold">
+                    <Truck className="size-3.5" /> Estimated delivery: {eta}
+                  </div>
+                ) : null;
+              })()}
             </motion.div>
           );
         })}

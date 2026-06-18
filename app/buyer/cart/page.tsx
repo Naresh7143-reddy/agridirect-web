@@ -8,10 +8,7 @@ import { Trash2, Minus, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '@/lib/store';
 import { formatINR } from '@/lib/utils';
 import { toast } from 'sonner';
-
-const DELIVERY_FEE = 40;
-const FREE_THRESHOLD = 500;
-const PLATFORM_FEE = 5;
+import { calcDeliveryFee, estimatedDelivery, PLATFORM_FEE } from '@/lib/delivery';
 
 export default function CartPage() {
   const router = useRouter();
@@ -21,8 +18,9 @@ export default function CartPage() {
   const remove = useCart((s) => s.remove);
   const clear = useCart((s) => s.clear);
 
-  const delivery = total >= FREE_THRESHOLD ? 0 : DELIVERY_FEE;
+  const delivery = calcDeliveryFee(total);
   const grand = total + delivery + PLATFORM_FEE;
+  const eta = estimatedDelivery();
 
   if (items.length === 0) {
     return (
@@ -85,12 +83,16 @@ export default function CartPage() {
           <h2 className="font-extrabold text-xl mb-2">Order summary</h2>
           <Row label="Subtotal" value={formatINR(total)} />
           <Row label="Delivery" value={delivery === 0 ? 'FREE' : formatINR(delivery)} />
-          <Row label="Platform fee" value={formatINR(PLATFORM_FEE)} />
-          {delivery > 0 && total < FREE_THRESHOLD && (
+          <Row label="Platform fee (2%)" value={formatINR(PLATFORM_FEE)} />
+          {delivery > 0 && total < 500 && (
             <div className="bg-secondary/10 text-ink-1 rounded-xl p-3 text-sm">
-              Add <strong>{formatINR(FREE_THRESHOLD - total)}</strong> more for free delivery 🚚
+              Add <strong>{formatINR(500 - total)}</strong> more for free delivery 🚚
             </div>
           )}
+          <div className="flex justify-between text-ink-2 text-sm">
+            <span>Estimated delivery</span>
+            <span className="font-semibold text-ink-1">{eta}</span>
+          </div>
           <div className="border-t border-border pt-3 flex justify-between items-baseline">
             <span className="text-lg font-semibold">Total</span>
             <span className="text-2xl font-extrabold text-primary">{formatINR(grand)}</span>
