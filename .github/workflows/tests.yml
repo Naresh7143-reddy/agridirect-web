@@ -89,6 +89,13 @@ jobs:
           TEST_BASE_URL: http://localhost:3000
         continue-on-error: true
 
+      # ── 3b. Debug pytest XML ──────────────────────────────────────────────
+      - name: Show pytest XML (debug)
+        if: always()
+        run: |
+          echo "=== pytest-results.xml ==="
+          cat reports/pytest-results.xml 2>/dev/null || echo "(file not found)"
+
       # ── 4. Generate Excel report ───────────────────────────────────────────
       - name: Generate Excel report
         if: always()
@@ -165,28 +172,41 @@ jobs:
 
             try {
               const xml = fs.readFileSync('reports/pytest-results.xml', 'utf8');
-              const suiteM = xml.match(/<testsuite[^>]+tests="(\d+)"[^>]*failures="(\d+)"[^>]*errors="(\d+)"[^>]*skipped="(\d+)"(?:[^>]*time="([^"]*)")?/);
-              if (suiteM) {
-                pyTotal = parseInt(suiteM[1]);
-                pyFail  = parseInt(suiteM[2]) + parseInt(suiteM[3]);
-                pySkip  = parseInt(suiteM[4]);
-                pyPass  = pyTotal - pyFail - pySkip;
-                pyDuration = suiteM[5] ? parseFloat(suiteM[5]) * 1000 : null;
+              console.log('pytest XML first 300 chars:', xml.slice(0, 300));
+              // Extract each attribute independently — order varies across pytest versions
+              const suiteTag = xml.match(/<testsuite[^>]+>/)?.[0] ?? '';
+              const attr = name => { const m = suiteTag.match(new RegExp(`${name}="([^"]+)"`)); return m ? parseInt(m[1]) : 0; };
+              const attrF = name => { const m = suiteTag.match(new RegExp(`${name}="([^"]+)"`)); return m ? parseFloat(m[1]) : null; };
+              if (suiteTag) {
+                pyTotal    = attr('tests');
+                const errs = attr('errors');
+                const fail = attr('failures');
+                pyFail     = fail + errs;
+                pySkip     = attr('skipped');
+                pyPass     = pyTotal - pyFail - pySkip;
+                pyDuration = attrF('time') ? attrF('time') * 1000 : null;
+                console.log(`pytest parsed: tests=${pyTotal} pass=${pyPass} fail=${pyFail} skip=${pySkip}`);
+              } else {
+                console.log('No <testsuite> tag found in XML');
               }
 
               const classMap = {};
-              const cases = [...xml.matchAll(/<testcase([^>]+)>([\s\S]*?)<\/testcase>/g)];
+              // Match both <testcase .../> (self-closing) and <testcase ...>...</testcase>
+              const cases = [...xml.matchAll(/<testcase([^>]+?)(?:\/>|>([\s\S]*?)<\/testcase>)/g)];
+              console.log(`pytest testcases found: ${cases.length}`);
               for (const tc of cases) {
-                const nameM  = tc[1].match(/name="([^"]+)"/);
-                const classM = tc[1].match(/classname="([^"]+)"/);
-                const timeM  = tc[1].match(/time="([^"]+)"/);
+                const attrs  = tc[1];
+                const inner  = tc[2] ?? '';
+                const nameM  = attrs.match(/name="([^"]+)"/);
+                const classM = attrs.match(/classname="([^"]+)"/);
+                const timeM  = attrs.match(/time="([^"]+)"/);
                 const name   = nameM  ? nameM[1]  : '?';
                 const cls    = classM ? classM[1] : 'unknown';
                 const dur    = timeM  ? parseFloat(timeM[1]) * 1000 : null;
-                const isFail = /<failure|<error/.test(tc[2]);
-                const isSkip = /<skipped/.test(tc[2]);
-                const msgM   = tc[2].match(/message="([^"]*)"/);
-                const textM  = tc[2].match(/<(?:failure|error)[^>]*>([\s\S]*?)<\/(?:failure|error)>/);
+                const isFail = /<failure|<error/.test(inner);
+                const isSkip = /<skipped/.test(inner);
+                const msgM   = inner.match(/message="([^"]*)"/);
+                const textM  = inner.match(/<(?:failure|error)[^>]*>([\s\S]*?)<\/(?:failure|error)>/);
                 const errMsg = msgM ? msgM[1] : '';
                 const errTxt = textM ? textM[1].trim().slice(0, 600) : '';
 
