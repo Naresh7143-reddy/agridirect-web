@@ -225,6 +225,15 @@ jobs:
                 pySuites.push({ file: cls, sPass: c.pass, sFail: c.fail, sSkip: c.skip,
                   total: c.pass+c.fail+c.skip, dur: c.dur });
               }
+
+              // Always recompute totals from individual cases — testsuite tag attr order is unreliable
+              pyPass  = pyAllTests.filter(t => t.status === 'passed').length;
+              pyFail  = pyAllTests.filter(t => t.status === 'failed').length;
+              pySkip  = pyAllTests.filter(t => t.status === 'skipped').length;
+              pyTotal = pyAllTests.length;
+              if (pyDuration === null)
+                pyDuration = pySuites.reduce((s, c) => s + c.dur, 0) || null;
+              console.log(`pytest final: total=${pyTotal} pass=${pyPass} fail=${pyFail} skip=${pySkip}`);
             } catch (e) { console.log('Pytest parse error:', e.message); }
 
             // ── Parse coverage (if present) ───────────────────────────────
