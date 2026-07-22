@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Plus, Loader2, Package, ImagePlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import client from '@/lib/api';
+import { uploadProductImage } from '@/lib/firebase';
 import { formatINR, productImageUrl } from '@/lib/utils';
 
 export default function FarmerProducts() {
@@ -47,9 +47,10 @@ export default function FarmerProducts() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
           {products.map((p, i) => (
             <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className="card !p-0 overflow-hidden">
-              <div className="aspect-[4/3] bg-bg relative">
+              <div className="aspect-[4/3] bg-bg relative overflow-hidden">
                 {productImageUrl(p) ? (
-                  <Image src={productImageUrl(p)} alt={p.name} fill className="object-cover" sizes="200px" />
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={productImageUrl(p)} alt={p.name} className="w-full h-full object-cover" />
                 ) : <div className="flex items-center justify-center h-full text-5xl">🥬</div>}
               </div>
               <div className="p-4">
@@ -78,6 +79,7 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   const [categoryId, setCategoryId] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -96,6 +98,8 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
       toast.error('Image must be smaller than 5 MB');
       return;
     }
+    setImageFile(file);
+    // Show a local preview while we wait to upload
     const reader = new FileReader();
     reader.onload = (ev) => setImagePreview(ev.target?.result as string);
     reader.readAsDataURL(file);
@@ -103,6 +107,7 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
 
   const clearImage = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setImageFile(null);
     setImagePreview('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -114,6 +119,19 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     }
     setBusy(true);
     try {
+      // Upload image to Firebase Storage first (if one was selected)
+      let primaryImageUrl = '';
+      if (imageFile) {
+        toast.loading('Uploading image…', { id: 'img-upload' });
+        try {
+          primaryImageUrl = await uploadProductImage(imageFile);
+          toast.dismiss('img-upload');
+        } catch {
+          toast.dismiss('img-upload');
+          toast.error('Image upload failed — product will be saved without image');
+        }
+      }
+
       await client.post('/api/farmer/products', {
         name: name.trim(),
         description: description.trim(),
@@ -122,7 +140,7 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
         stock: parseInt(stock, 10),
         minOrderQuantity: 1,
         categoryId,
-        ...(imagePreview ? { primaryImageUrl: imagePreview } : {}),
+        ...(primaryImageUrl ? { primaryImageUrl } : {}),
       });
       toast.success('Product added!');
       onSuccess();

@@ -2,9 +2,11 @@
 
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, type Auth } from 'firebase/auth';
+import { getStorage, ref, uploadBytes, getDownloadURL, type FirebaseStorage } from 'firebase/storage';
 
 let app: FirebaseApp | null = null;
 let _auth: Auth | null = null;
+let _storage: FirebaseStorage | null = null;
 
 /**
  * Lazy-initialize Firebase only when actually needed (e.g. inside a click
@@ -31,6 +33,7 @@ function init() {
 
   app = getApps().length ? getApps()[0] : initializeApp(config as any);
   _auth = getAuth(app);
+  _storage = getStorage(app);
   return _auth;
 }
 
@@ -38,6 +41,24 @@ export function getFirebaseAuth(): Auth {
   const a = init();
   if (!a) throw new Error('Firebase Auth is not configured. Add your Firebase web config to .env.local.');
   return a;
+}
+
+export function getFirebaseStorage(): FirebaseStorage {
+  // Ensure Firebase is initialised
+  init();
+  if (!_storage) throw new Error('Firebase Storage is not configured.');
+  return _storage;
+}
+
+/**
+ * Upload a File to Firebase Storage under `products/` and return the public download URL.
+ */
+export async function uploadProductImage(file: File): Promise<string> {
+  const storage = getFirebaseStorage();
+  const path = `products/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file);
+  return getDownloadURL(storageRef);
 }
 
 export { RecaptchaVerifier, signInWithPhoneNumber };
