@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Plus, Loader2, Package } from 'lucide-react';
+import { Plus, Loader2, Package, ImagePlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import client from '@/lib/api';
 import { formatINR, productImageUrl } from '@/lib/utils';
@@ -78,10 +78,34 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   const [categoryId, setCategoryId] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     client.get('/api/categories').then((r) => setCategories(r.data?.data ?? []));
   }, []);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be smaller than 5 MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const clearImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImagePreview('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const submit = async () => {
     if (!name.trim() || !price || !categoryId) {
@@ -98,6 +122,7 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
         stock: parseInt(stock, 10),
         minOrderQuantity: 1,
         categoryId,
+        ...(imagePreview ? { primaryImageUrl: imagePreview } : {}),
       });
       toast.success('Product added!');
       onSuccess();
@@ -113,6 +138,41 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
       <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-3xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <h2 className="text-2xl font-extrabold mb-6">Add product</h2>
         <div className="space-y-3">
+          {/* Image Upload */}
+          <div>
+            <label className="block text-sm font-semibold mb-2">Product Image</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              id="product-image-input"
+              onChange={handleImageChange}
+            />
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="relative w-full h-40 rounded-2xl border-2 border-dashed border-border hover:border-primary transition-colors cursor-pointer overflow-hidden flex items-center justify-center bg-gray-50"
+            >
+              {imagePreview ? (
+                <>
+                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  <button
+                    onClick={clearImage}
+                    className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 hover:bg-black/80 transition"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-gray-400">
+                  <ImagePlus className="size-10" />
+                  <span className="text-sm font-medium">Click to upload product image</span>
+                  <span className="text-xs">PNG, JPG, WebP · max 5 MB</span>
+                </div>
+              )}
+            </div>
+          </div>
+
           <Input label="Name *" value={name} onChange={setName} placeholder="e.g. Fresh Tomatoes" />
           <div>
             <label className="block text-sm font-semibold mb-2">Category *</label>
