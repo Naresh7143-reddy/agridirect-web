@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import { Plus, Loader2, Package, ImagePlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import client from '@/lib/api';
-import { uploadProductImage } from '@/lib/firebase';
 import { formatINR, productImageUrl } from '@/lib/utils';
 
 export default function FarmerProducts() {
@@ -99,7 +98,7 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
       return;
     }
     setImageFile(file);
-    // Show a local preview while we wait to upload
+    // Show a local preview immediately while upload happens on submit
     const reader = new FileReader();
     reader.onload = (ev) => setImagePreview(ev.target?.result as string);
     reader.readAsDataURL(file);
@@ -119,12 +118,18 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     }
     setBusy(true);
     try {
-      // Upload image to Firebase Storage first (if one was selected)
-      let primaryImageUrl = '';
+      // Step 1: Upload image to Cloudinary via the backend endpoint
+      let imageUrls: string[] = [];
       if (imageFile) {
         toast.loading('Uploading image…', { id: 'img-upload' });
         try {
-          primaryImageUrl = await uploadProductImage(imageFile);
+          const formData = new FormData();
+          formData.append('file', imageFile);
+          const uploadRes = await client.post('/api/farmer/products/upload-image', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+          const cloudinaryUrl = uploadRes.data?.data?.imageUrl;
+          if (cloudinaryUrl) imageUrls = [cloudinaryUrl];
           toast.dismiss('img-upload');
         } catch {
           toast.dismiss('img-upload');
@@ -132,6 +137,7 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
         }
       }
 
+      // Step 2: Create product with the Cloudinary image URLs
       await client.post('/api/farmer/products', {
         name: name.trim(),
         description: description.trim(),
@@ -140,7 +146,7 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
         stock: parseInt(stock, 10),
         minOrderQuantity: 1,
         categoryId,
-        ...(primaryImageUrl ? { primaryImageUrl } : {}),
+        ...(imageUrls.length > 0 ? { imageUrls } : {}),
       });
       toast.success('Product added!');
       onSuccess();
@@ -173,6 +179,7 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
             >
               {imagePreview ? (
                 <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                   <button
                     onClick={clearImage}
