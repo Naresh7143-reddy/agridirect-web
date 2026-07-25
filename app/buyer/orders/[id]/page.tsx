@@ -131,6 +131,23 @@ export default function OrderDetailPage() {
         </div>
       </motion.div>
 
+      {/* OTP Display for Delivery */}
+      {!isCancelled && !isDelivered && order.deliveryOtp && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }} className="card mb-6 border-2 border-primary/20 bg-primary/5">
+          <div className="flex flex-col sm:flex-row items-center gap-4 justify-between">
+            <div>
+              <div className="font-bold text-primary flex items-center gap-2">
+                <CheckCircle2 className="size-5" /> Delivery Verification OTP
+              </div>
+              <div className="text-sm text-ink-2 mt-1">Share this PIN with your delivery agent to receive your order.</div>
+            </div>
+            <div className="bg-white rounded-lg px-6 py-3 shadow-sm border border-primary/10">
+              <span className="text-3xl font-mono tracking-[0.25em] font-extrabold text-primary">{order.deliveryOtp}</span>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Status Timeline */}
       {!isCancelled && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="card mb-6">

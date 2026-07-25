@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Plus, Leaf, Heart } from 'lucide-react';
+import { Plus, Leaf, Heart, Star } from 'lucide-react';
 import { useCart, useWishlist } from '@/lib/store';
 import { formatINR, productImageUrl } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -102,6 +102,11 @@ export default function ProductCard({ product, index = 0 }: { product: any; inde
         <div className="p-4">
           <h3 className="font-semibold text-ink-1 truncate">{product.name}</h3>
           <p className="text-xs text-ink-3 truncate mt-0.5">by {product.farmerName ?? 'Farmer'}</p>
+          <div className="flex items-center gap-1 mt-1 text-sm font-medium text-ink-2">
+            <Star className="size-3.5 fill-yellow-400 text-yellow-400" />
+            <span>{product.rating ?? '4.5'}</span>
+            <span className="text-xs text-ink-3 font-normal">({product.reviewCount ?? 12})</span>
+          </div>
           <div className="flex items-center justify-between mt-3">
             <div>
               <div className="text-lg font-extrabold text-primary">
