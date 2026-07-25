@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Loader2, Clock, CheckCircle2, Package, Truck, MapPin,
-  XCircle, Star, X, AlertTriangle, Navigation, Phone, User,
+  XCircle, Star, X, AlertTriangle, Navigation, Phone, User, Undo2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { buyerApi } from '@/lib/api';
@@ -39,6 +39,9 @@ export default function OrderDetailPage() {
   const [review, setReview] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
+  const [submittingReturn, setSubmittingReturn] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -74,6 +77,29 @@ export default function OrderDetailPage() {
       toast.error(e?.response?.data?.message ?? 'Failed to submit rating');
     } finally {
       setSubmittingRating(false);
+    }
+  };
+
+  const handleReturn = async () => {
+    if (!returnReason.trim()) { toast.error('Please provide a reason'); return; }
+    setSubmittingReturn(true);
+    try {
+      const res = await fetch(`http://localhost:8080/api/returns`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ orderId: id, reason: returnReason })
+      });
+      if (!res.ok) throw new Error('Failed to submit return');
+      toast.success('Return requested successfully');
+      setShowReturnDialog(false);
+      load();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to submit return');
+    } finally {
+      setSubmittingReturn(false);
     }
   };
 
@@ -263,12 +289,38 @@ export default function OrderDetailPage() {
             </motion.div>
           )}
           {isDelivered && ratingSubmitted && (
-            <div className="card bg-success/5 border-2 border-success/20">
+            <div className="card bg-success/5 border-2 border-success/20 mb-6">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="size-6 text-success" />
                 <div className="font-bold text-success">Thanks for your feedback!</div>
               </div>
             </div>
+          )}
+
+          {/* Return section */}
+          {isDelivered && order.returnStatus == null && (
+             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="card border-2 border-error/10">
+               <div className="flex items-start justify-between">
+                 <div>
+                   <h2 className="font-extrabold text-lg mb-1 flex items-center gap-2">Need a Return?</h2>
+                   <p className="text-sm text-ink-2">If your items arrived damaged, you can request a refund within 24 hours.</p>
+                 </div>
+                 <button onClick={() => setShowReturnDialog(true)} className="btn-secondary text-error hover:bg-error/10 shrink-0">
+                   <Undo2 className="size-4 mr-2" /> Request Return
+                 </button>
+               </div>
+             </motion.div>
+          )}
+          {order.returnStatus != null && (
+             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="card bg-orange-50 border-2 border-orange-200">
+               <div className="flex items-center gap-3">
+                 <Undo2 className="size-6 text-orange-500" />
+                 <div>
+                   <div className="font-bold text-orange-700">Return {order.returnStatus}</div>
+                   <div className="text-sm text-orange-600 mt-1">We are reviewing your request.</div>
+                 </div>
+               </div>
+             </motion.div>
           )}
         </div>
 
@@ -347,6 +399,38 @@ export default function OrderDetailPage() {
               <button onClick={() => setShowCancelDialog(false)} className="btn-secondary flex-1">Keep Order</button>
               <button onClick={handleCancel} disabled={cancelling} className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-error px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-red-700 active:scale-95 disabled:opacity-50">
                 {cancelling ? <Loader2 className="size-5 animate-spin" /> : 'Yes, Cancel'}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Return request dialog */}
+      {showReturnDialog && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowReturnDialog(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl p-6 w-full max-w-sm"
+          >
+            <div className="mb-4">
+              <h2 className="text-xl font-extrabold flex items-center gap-2">
+                <Undo2 className="size-6 text-error" /> Request Return
+              </h2>
+              <p className="text-ink-2 mt-2 text-sm">Please provide a valid reason for returning this order.</p>
+            </div>
+            <textarea
+              value={returnReason}
+              onChange={(e) => setReturnReason(e.target.value)}
+              placeholder="E.g. The tomatoes arrived completely smashed."
+              rows={4}
+              className="w-full px-4 py-3 rounded-2xl border-2 border-border focus:border-primary outline-none mb-6 resize-none"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setShowReturnDialog(false)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={handleReturn} disabled={submittingReturn} className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-error px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-red-700 active:scale-95 disabled:opacity-50">
+                {submittingReturn ? <Loader2 className="size-5 animate-spin" /> : 'Submit'}
               </button>
             </div>
           </motion.div>

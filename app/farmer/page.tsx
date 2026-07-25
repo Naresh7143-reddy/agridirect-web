@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { TrendingUp, Package, ShoppingBag, Star, Plus, Sparkles, IndianRupee } from 'lucide-react';
+import { TrendingUp, Package, ShoppingBag, Star, Plus, Sparkles, IndianRupee, Undo2, CalendarDays } from 'lucide-react';
 import client from '@/lib/api';
 import { formatINR } from '@/lib/utils';
 
 export default function FarmerHome() {
   const [stats, setStats] = useState<any>({});
+  const [analytics, setAnalytics] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [farmerName, setFarmerName] = useState<string>('');
 
@@ -16,10 +17,15 @@ export default function FarmerHome() {
     client.get('/api/auth/me')
       .then((r) => setFarmerName(r.data?.data?.name ?? ''))
       .catch(() => {});
-    client.get('/api/farmer/dashboard')
-      .then((r) => setStats(r.data?.data ?? {}))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
+    Promise.all([
+      client.get('/api/farmer/dashboard'),
+      client.get('/api/analytics/farmer')
+    ]).then(([dashRes, analyticsRes]) => {
+      setStats(dashRes.data?.data ?? {});
+      setAnalytics(analyticsRes.data?.data ?? {});
+    }).catch(() => {})
+    .finally(() => setLoading(false));
   }, []);
 
   const hour = new Date().getHours();
@@ -36,10 +42,15 @@ export default function FarmerHome() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={IndianRupee} color="text-success" bg="bg-success/10" label="Total revenue" value={formatINR(stats.totalRevenue ?? 0)} loading={loading} />
-        <StatCard icon={ShoppingBag} color="text-primary" bg="bg-primary/10" label="Total orders" value={String(stats.totalOrders ?? 0)} loading={loading} />
+        <StatCard icon={IndianRupee} color="text-success" bg="bg-success/10" label="Total revenue" value={formatINR(analytics.totalRevenue ?? stats.totalRevenue ?? 0)} loading={loading} />
+        <StatCard icon={ShoppingBag} color="text-primary" bg="bg-primary/10" label="Total orders" value={String(analytics.totalOrders ?? stats.totalOrders ?? 0)} loading={loading} />
         <StatCard icon={Package} color="text-primary" bg="bg-primary/10" label="Active products" value={String(stats.activeProducts ?? 0)} loading={loading} />
         <StatCard icon={Star} color="text-secondary" bg="bg-secondary/10" label="Rating" value={(stats.averageRating ?? 0).toFixed(1)} loading={loading} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <StatCard icon={CalendarDays} color="text-blue-500" bg="bg-blue-500/10" label="Active Subscriptions" value={String(analytics.activeSubscriptions ?? 0)} loading={loading} />
+        <StatCard icon={Undo2} color="text-error" bg="bg-error/10" label="Pending Returns" value={String(analytics.pendingReturns ?? 0)} loading={loading} />
       </div>
 
       {/* Orders breakdown */}
