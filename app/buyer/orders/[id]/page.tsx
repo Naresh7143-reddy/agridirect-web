@@ -204,6 +204,14 @@ export default function OrderDetailPage() {
               );
             })}
           </div>
+          
+          {canTrack && (
+            <div className="mt-8 flex justify-center">
+              <Link href={`/buyer/orders/${order.id}/track`} className="btn-primary inline-flex items-center gap-2 px-8 py-3 bg-ink-1 hover:bg-black text-white rounded-full">
+                <Navigation className="size-5" /> Live Track Delivery
+              </Link>
+            </div>
+          )}
         </motion.div>
       )}
 
