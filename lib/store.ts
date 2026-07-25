@@ -53,3 +53,27 @@ export const useCart = create<CartState>()(
     { name: 'agridirect-cart', storage: createJSONStorage(() => localStorage) },
   ),
 );
+
+interface WishlistState {
+  items: Set<string>;
+  init: (productIds: string[]) => void;
+  add: (productId: string) => void;
+  remove: (productId: string) => void;
+  has: (productId: string) => boolean;
+}
+
+export const useWishlist = create<WishlistState>((set, get) => ({
+  items: new Set(),
+  init: (productIds) => set({ items: new Set(productIds) }),
+  add: (productId) => set((state) => {
+    const newItems = new Set(state.items);
+    newItems.add(productId);
+    return { items: newItems };
+  }),
+  remove: (productId) => set((state) => {
+    const newItems = new Set(state.items);
+    newItems.delete(productId);
+    return { items: newItems };
+  }),
+  has: (productId) => get().items.has(productId),
+}));

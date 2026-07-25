@@ -3,16 +3,31 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Plus, Leaf } from 'lucide-react';
-import { useCart } from '@/lib/store';
+import { Plus, Leaf, Heart } from 'lucide-react';
+import { useCart, useWishlist } from '@/lib/store';
 import { formatINR, productImageUrl } from '@/lib/utils';
 import { toast } from 'sonner';
+import { wishlistApi } from '@/lib/api';
+import { useEffect, useState } from 'react';
+import Cookies from 'js-cookie';
 
 export default function ProductCard({ product, index = 0 }: { product: any; index?: number }) {
+  const [mounted, setMounted] = useState(false);
   const add = useCart((s) => s.add);
+  const wishlistItems = useWishlist((s) => s.items);
+  const addWishlist = useWishlist((s) => s.add);
+  const removeWishlist = useWishlist((s) => s.remove);
+  
+  const isWishlisted = mounted && wishlistItems.has(product.id);
+  const isBuyer = mounted && Cookies.get('user_role') === 'BUYER';
+  
+  useEffect(() => setMounted(true), []);
+
   const img = productImageUrl(product);
+  
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     add({
       productId: product.id,
       name: product.name,
@@ -24,6 +39,32 @@ export default function ProductCard({ product, index = 0 }: { product: any; inde
     toast.success(`${product.name} added to cart`);
   };
 
+  const handleWishlist = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isBuyer) {
+      toast.error('Please login as a buyer to save items');
+      return;
+    }
+    
+    try {
+      if (isWishlisted) {
+        removeWishlist(product.id);
+        await wishlistApi.remove(product.id);
+        toast.success('Removed from wishlist');
+      } else {
+        addWishlist(product.id);
+        await wishlistApi.add(product.id);
+        toast.success('Saved to wishlist');
+      }
+    } catch (err) {
+      toast.error('Failed to update wishlist');
+      // Revert optimistic update
+      if (isWishlisted) addWishlist(product.id);
+      else removeWishlist(product.id);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -32,7 +73,7 @@ export default function ProductCard({ product, index = 0 }: { product: any; inde
     >
       <Link
         href={`/buyer/product/${product.id}`}
-        className="group block rounded-2xl bg-white shadow-card hover:shadow-hover hover:-translate-y-1 transition overflow-hidden"
+        className="group block rounded-2xl bg-white shadow-card hover:shadow-hover hover:-translate-y-1 transition overflow-hidden relative"
       >
         <div className="aspect-[4/3] bg-gradient-to-br from-green-100 to-yellow-100 relative overflow-hidden">
           {img ? (
@@ -46,6 +87,18 @@ export default function ProductCard({ product, index = 0 }: { product: any; inde
             </span>
           )}
         </div>
+        
+        {/* Wishlist Button */}
+        {isBuyer && (
+          <button
+            onClick={handleWishlist}
+            className="absolute top-3 right-3 p-2 bg-white/80 hover:bg-white rounded-full text-error transition shadow-sm z-10"
+            title={isWishlisted ? "Remove from wishlist" : "Save to wishlist"}
+          >
+            <Heart className={`size-4 ${isWishlisted ? 'fill-error' : ''}`} />
+          </button>
+        )}
+
         <div className="p-4">
           <h3 className="font-semibold text-ink-1 truncate">{product.name}</h3>
           <p className="text-xs text-ink-3 truncate mt-0.5">by {product.farmerName ?? 'Farmer'}</p>

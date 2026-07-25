@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, Truck, Package, MapPin, Phone, User, Check, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
-import client from '@/lib/api';
+import client, { deliveryApi } from '@/lib/api';
 import { formatINR } from '@/lib/utils';
 
 function ContactRow({ icon: Icon, color, label, name, phone, address }: {
@@ -44,6 +44,8 @@ export default function DeliveryHome() {
   const [loading, setLoading]     = useState(true);
   const [busyId, setBusyId]       = useState<string | null>(null);
   const [online, setOnline]       = useState(true);
+  const geoWatchRef = useRef<number | null>(null);
+  const locIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -58,6 +60,59 @@ export default function DeliveryHome() {
       .finally(() => setLoading(false));
   };
   useEffect(load, []);
+
+  // Geolocation tracking — send location every 30s when online
+  const sendLocation = useCallback(async (pos: GeolocationPosition) => {
+    try {
+      await deliveryApi.updateLocation(pos.coords.latitude, pos.coords.longitude);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (!online || !navigator.geolocation) {
+      // Stop tracking when going offline
+      if (geoWatchRef.current != null) {
+        navigator.geolocation.clearWatch(geoWatchRef.current);
+        geoWatchRef.current = null;
+      }
+      if (locIntervalRef.current) {
+        clearInterval(locIntervalRef.current);
+        locIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Get initial position
+    navigator.geolocation.getCurrentPosition(sendLocation, () => {}, { enableHighAccuracy: true });
+
+    // Send location every 30 seconds
+    locIntervalRef.current = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(sendLocation, () => {}, { enableHighAccuracy: true });
+    }, 30000);
+
+    return () => {
+      if (geoWatchRef.current != null) {
+        navigator.geolocation.clearWatch(geoWatchRef.current);
+        geoWatchRef.current = null;
+      }
+      if (locIntervalRef.current) {
+        clearInterval(locIntervalRef.current);
+        locIntervalRef.current = null;
+      }
+    };
+  }, [online, sendLocation]);
+
+  const toggleOnline = async () => {
+    const newState = !online;
+    setOnline(newState);
+    try {
+      await deliveryApi.updateAvailability(newState);
+      toast.success(newState ? "You're online — location tracking started" : "You're offline");
+    } catch {
+      toast.error('Failed to update availability');
+      setOnline(!newState); // revert
+    }
+  };
 
   const claim = async (id: string) => {
     setBusyId(id);
@@ -98,7 +153,7 @@ export default function DeliveryHome() {
         <h1 className="text-4xl font-extrabold mt-1">Today's deliveries</h1>
         <div
           className="mt-6 inline-flex items-center gap-3 bg-white/20 rounded-full px-4 py-2 cursor-pointer"
-          onClick={() => { setOnline(!online); toast.success(!online ? "You're online" : "You're offline"); }}
+          onClick={toggleOnline}
         >
           <div className={`size-3 rounded-full ${online ? 'bg-green-300 animate-pulse' : 'bg-white/40'}`} />
           <span className="font-bold">{online ? 'ONLINE' : 'OFFLINE'}</span>

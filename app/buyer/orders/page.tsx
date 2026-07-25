@@ -55,38 +55,40 @@ export default function OrdersPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="card"
             >
-              <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-                <div>
-                  <div className="text-xs text-ink-3 font-mono">#{String(o.id).slice(0, 8).toUpperCase()}</div>
-                  <div className={`mt-1 inline-flex items-center gap-1.5 ${cfg.bg} ${cfg.color} rounded-full px-3 py-1 text-sm font-semibold`}>
-                    <cfg.icon className="size-4" />
-                    {cfg.label}
+              <Link
+                href={`/buyer/orders/${o.id}`}
+                className="card block cursor-pointer hover:ring-2 hover:ring-primary/20"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                  <div>
+                    <div className="text-xs text-ink-3 font-mono">#{String(o.id).slice(0, 8).toUpperCase()}</div>
+                    <div className={`mt-1 inline-flex items-center gap-1.5 ${cfg.bg} ${cfg.color} rounded-full px-3 py-1 text-sm font-semibold`}>
+                      <cfg.icon className="size-4" />
+                      {cfg.label}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-ink-3">{new Date(o.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                    <div className="text-xl font-extrabold text-primary mt-1">{formatINR(o.totalAmount)}</div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-xs text-ink-3">{new Date(o.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-                  <div className="text-xl font-extrabold text-primary mt-1">{formatINR(o.totalAmount)}</div>
+                <div className="text-sm text-ink-2 truncate">
+                  {(o.items ?? []).map((it: any) => it.productName ?? it.name).filter(Boolean).join(', ') || 'Order items'}
                 </div>
-              </div>
-              <div className="text-sm text-ink-2 truncate">
-                {(o.items ?? []).map((it: any) => it.productName ?? it.name).filter(Boolean).join(', ') || 'Order items'}
-              </div>
-              <div className="mt-4 flex items-center justify-between text-sm">
-                <span className="text-ink-3">Pay: <span className="text-ink-1 font-semibold">{o.paymentMethod ?? 'COD'}</span></span>
-                {o.status === 'PENDING' && (
-                  <span className="text-xs text-ink-3">Can cancel until farmer accepts</span>
-                )}
-              </div>
-              {(() => {
-                const eta = orderETA(o.status, o.createdAt);
-                return eta ? (
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-primary font-semibold">
-                    <Truck className="size-3.5" /> Estimated delivery: {eta}
-                  </div>
-                ) : null;
-              })()}
+                <div className="mt-4 flex items-center justify-between text-sm">
+                  <span className="text-ink-3">Pay: <span className="text-ink-1 font-semibold">{o.paymentMethod ?? 'COD'}</span></span>
+                  <span className="text-primary font-semibold flex items-center gap-1">View details <ArrowRight className="size-4" /></span>
+                </div>
+                {(() => {
+                  const eta = orderETA(o.status, o.createdAt);
+                  return eta ? (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-primary font-semibold">
+                      <Truck className="size-3.5" /> Estimated delivery: {eta}
+                    </div>
+                  ) : null;
+                })()}
+              </Link>
             </motion.div>
           );
         })}

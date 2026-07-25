@@ -98,22 +98,84 @@ export default function CheckoutPage() {
       return;
     }
     setPlacing(true);
+
+    const orderPayload = {
+      items: items.map((i) => ({
+        productId: i.productId,
+        quantity: Number.isFinite(i.quantity) && i.quantity > 0 ? i.quantity : 1,
+        pricePerUnit: Number.isFinite(i.price) ? i.price : 0,
+        unit: i.unit || 'kg',
+      })),
+      addressId: selectedAddressId,
+      paymentMethod: payment,
+      deliveryFee: delivery,
+      platformFee: PLATFORM_FEE,
+    };
+
     try {
-      await buyerApi.placeOrder({
-        items: items.map((i) => ({
-          productId: i.productId,
-          quantity: Number.isFinite(i.quantity) && i.quantity > 0 ? i.quantity : 1,
-          pricePerUnit: Number.isFinite(i.price) ? i.price : 0,
-          unit: i.unit || 'kg',
-        })),
-        addressId: selectedAddressId,
-        paymentMethod: payment,
-        deliveryFee: delivery,
-        platformFee: PLATFORM_FEE,
-      });
-      clear();
-      toast.success('Order placed! 🎉');
-      router.push('/buyer/orders');
+      if (payment === 'COD') {
+        await buyerApi.placeOrder(orderPayload);
+        clear();
+        toast.success('Order placed! 🎉');
+        router.push('/buyer/orders');
+      } else {
+        // Razorpay online payment flow
+        const { paymentApi } = await import('@/lib/api');
+        
+        // 1. Create order on backend
+        const res = await paymentApi.createOrder({
+          amount: grand,
+          type: 'ORDER',
+          // Optionally pass orderPayload to backend if backend create-order expects it to save pending order
+        });
+        const { orderId, amount: rpAmount } = res.data;
+
+        // 2. Open Razorpay checkout
+        const options = {
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_placeholder', // Fallback for dev
+          amount: rpAmount,
+          currency: 'INR',
+          name: 'AgriDirect',
+          description: 'Order Payment',
+          order_id: orderId,
+          handler: async function (response: any) {
+            try {
+              toast.loading('Verifying payment...', { id: 'payment-verify' });
+              
+              // 3. Verify on backend
+              await paymentApi.verify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+
+              // 4. Actually place the order in our system
+              await buyerApi.placeOrder({
+                ...orderPayload,
+                paymentId: response.razorpay_payment_id,
+              });
+              
+              toast.dismiss('payment-verify');
+              clear();
+              toast.success('Payment successful & Order placed! 🎉');
+              router.push('/buyer/orders');
+            } catch (err: any) {
+              toast.dismiss('payment-verify');
+              toast.error('Payment verification failed. Please contact support.');
+            }
+          },
+          prefill: {
+            name: 'Buyer', // could fetch from profile
+            contact: '9999999999',
+          },
+          theme: { color: '#2E7D32' },
+        };
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on('payment.failed', function (response: any) {
+          toast.error(response.error.description || 'Payment failed');
+        });
+        rzp.open();
+      }
     } catch (e: any) {
       toast.error(e?.response?.data?.message ?? 'Order failed — please try again');
     } finally {
@@ -131,7 +193,10 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+    <>
+      {/* Load Razorpay script dynamically */}
+      <script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
+      <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
       <div className="lg:col-span-2 space-y-6">
         <h1 className="text-3xl font-extrabold">Checkout</h1>
 
@@ -261,5 +326,6 @@ export default function CheckoutPage() {
         </div>
       </aside>
     </div>
+    </>
   );
 }

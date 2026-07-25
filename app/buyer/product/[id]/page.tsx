@@ -4,23 +4,30 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Minus, Plus, ShoppingCart, Leaf, MapPin, Star } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, ShoppingCart, Leaf, MapPin, Star, Heart } from 'lucide-react';
 import { toast } from 'sonner';
-import { productsApi } from '@/lib/api';
-import { useCart } from '@/lib/store';
+import { productsApi, wishlistApi } from '@/lib/api';
+import { useCart, useWishlist } from '@/lib/store';
 import { formatINR, productImageUrl } from '@/lib/utils';
+import Cookies from 'js-cookie';
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const [mounted, setMounted] = useState(false);
 
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
+  
   const add = useCart((s) => s.add);
+  const wishlistItems = useWishlist((s) => s.items);
+  const addWishlist = useWishlist((s) => s.add);
+  const removeWishlist = useWishlist((s) => s.remove);
 
   useEffect(() => {
+    setMounted(true);
     productsApi.get(id).then((r) => setProduct(r.data)).finally(() => setLoading(false));
   }, [id]);
 
@@ -28,6 +35,8 @@ export default function ProductDetailPage() {
   if (!product) return <div className="text-center py-20 text-ink-2">Product not found.</div>;
 
   const img = productImageUrl(product);
+  const isWishlisted = mounted && wishlistItems.has(product.id);
+  const isBuyer = mounted && Cookies.get('user_role') === 'BUYER';
 
   const handleAdd = () => {
     add({
@@ -39,6 +48,29 @@ export default function ProductDetailPage() {
       farmerName: product.farmerName,
     }, qty);
     toast.success(`Added ${qty} ${product.unit} of ${product.name}`);
+  };
+
+  const handleWishlist = async () => {
+    if (!isBuyer) {
+      toast.error('Please login as a buyer to save items');
+      return;
+    }
+    
+    try {
+      if (isWishlisted) {
+        removeWishlist(product.id);
+        await wishlistApi.remove(product.id);
+        toast.success('Removed from wishlist');
+      } else {
+        addWishlist(product.id);
+        await wishlistApi.add(product.id);
+        toast.success('Saved to wishlist');
+      }
+    } catch (err) {
+      toast.error('Failed to update wishlist');
+      if (isWishlisted) addWishlist(product.id);
+      else removeWishlist(product.id);
+    }
   };
 
   return (
@@ -66,7 +98,18 @@ export default function ProductDetailPage() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }}>
-          <h1 className="text-4xl font-extrabold">{product.name}</h1>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-4xl font-extrabold">{product.name}</h1>
+            {isBuyer && (
+              <button
+                onClick={handleWishlist}
+                className="p-3 rounded-full hover:bg-bg transition text-error shrink-0"
+                title={isWishlisted ? "Remove from wishlist" : "Save to wishlist"}
+              >
+                <Heart className={`size-7 ${isWishlisted ? 'fill-error' : ''}`} />
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-3 mt-3">
             <div className="flex items-center gap-1">

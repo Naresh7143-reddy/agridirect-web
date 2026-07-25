@@ -2,16 +2,34 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart, User, LogOut, Sparkles } from 'lucide-react';
-import { useCart } from '@/lib/store';
+import { ShoppingCart, User, LogOut, Sparkles, Heart, Bell } from 'lucide-react';
+import { useCart, useWishlist } from '@/lib/store';
 import { useEffect, useState } from 'react';
 import Cookies from 'js-cookie';
+import { wishlistApi, notificationsApi } from '@/lib/api';
 
 export default function Navbar() {
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const count = useCart((s) => s.count());
-  useEffect(() => setMounted(true), []);
+  const wishlistCount = useWishlist((s) => s.items.size);
+  const initWishlist = useWishlist((s) => s.init);
+  const [unreadNotif, setUnreadNotif] = useState(0);
+
+  useEffect(() => {
+    setMounted(true);
+    const role = Cookies.get('user_role');
+    if (role === 'BUYER') {
+      wishlistApi.list()
+        .then((r) => {
+          if (r.data) initWishlist(r.data.map((p: any) => p.id));
+        })
+        .catch(() => {});
+      notificationsApi.unreadCount()
+        .then((r) => setUnreadNotif(r.data?.count ?? r.data ?? 0))
+        .catch(() => {});
+    }
+  }, [initWishlist]);
 
   const logout = () => {
     Cookies.remove('access_token');
@@ -35,7 +53,23 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href="/buyer/cart" className="relative p-2 rounded-full hover:bg-bg transition">
+          <Link href="/buyer/notifications" className="relative p-2 rounded-full hover:bg-bg transition" aria-label="Notifications">
+            <Bell className="size-6" />
+            {mounted && unreadNotif > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 size-5 bg-error text-white text-xs font-bold rounded-full flex items-center justify-center animate-bounce-in">
+                {unreadNotif > 9 ? '9+' : unreadNotif}
+              </span>
+            )}
+          </Link>
+          <Link href="/buyer/wishlist" className="relative p-2 rounded-full hover:bg-bg transition" aria-label="Wishlist">
+            <Heart className="size-6 text-error" />
+            {mounted && wishlistCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 size-5 bg-error text-white text-xs font-bold rounded-full flex items-center justify-center animate-bounce-in">
+                {wishlistCount}
+              </span>
+            )}
+          </Link>
+          <Link href="/buyer/cart" className="relative p-2 rounded-full hover:bg-bg transition" aria-label="Cart">
             <ShoppingCart className="size-6" />
             {mounted && count > 0 && (
               <span className="absolute -top-0.5 -right-0.5 size-5 bg-primary text-white text-xs font-bold rounded-full flex items-center justify-center animate-bounce-in">
@@ -43,7 +77,7 @@ export default function Navbar() {
               </span>
             )}
           </Link>
-          <Link href="/buyer/profile" className="p-2 rounded-full hover:bg-bg transition">
+          <Link href="/buyer/profile" className="p-2 rounded-full hover:bg-bg transition" aria-label="Profile">
             <User className="size-6" />
           </Link>
           <button onClick={logout} className="p-2 rounded-full hover:bg-bg transition" aria-label="Logout">

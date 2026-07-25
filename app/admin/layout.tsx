@@ -3,11 +3,13 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import Cookies from 'js-cookie';
-import { LogOut, LayoutDashboard, Users, Package, ShoppingBag, BarChart3, Bell } from 'lucide-react';
+import { LogOut, LayoutDashboard, Users, Package, ShoppingBag, BarChart3, Bell, UserCheck, Wheat } from 'lucide-react';
 
 const SIDEBAR = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/users', label: 'Users', icon: Users },
+  { href: '/admin/farmers', label: 'Farmer Verification', icon: UserCheck },
+  { href: '/admin/products', label: 'Product Approvals', icon: Wheat },
   { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
   { href: '/admin/categories', label: 'Categories', icon: Package },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },

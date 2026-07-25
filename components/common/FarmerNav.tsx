@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import Cookies from 'js-cookie';
-import { Home, Package, ShoppingBag, Sparkles, User, LogOut } from 'lucide-react';
+import { Home, Package, ShoppingBag, Sparkles, User, LogOut, IndianRupee } from 'lucide-react';
 
 const TABS = [
   { href: '/farmer',           label: 'Dashboard', icon: Home },
   { href: '/farmer/products',  label: 'Products',  icon: Package },
   { href: '/farmer/orders',    label: 'Orders',    icon: ShoppingBag },
+  { href: '/farmer/earnings',  label: 'Earnings',  icon: IndianRupee },
   { href: '/farmer/ai',        label: 'Krishi AI', icon: Sparkles },
   { href: '/farmer/profile',   label: 'Profile',   icon: User },
 ];

@@ -67,7 +67,7 @@ export default function FarmerHome() {
           <ActionCard href="/farmer/products" icon={Plus} label="Add product" desc="List new produce" />
           <ActionCard href="/farmer/orders" icon={ShoppingBag} label="Orders" desc={`${stats.pendingOrders ?? 0} pending`} />
           <ActionCard href="/farmer/ai" icon={Sparkles} label="Krishi AI" desc="Ask anything" />
-          <ActionCard href="/farmer/profile" icon={TrendingUp} label="Earnings" desc="Track payouts" />
+          <ActionCard href="/farmer/earnings" icon={TrendingUp} label="Earnings" desc="Track payouts" />
         </div>
       </section>
 

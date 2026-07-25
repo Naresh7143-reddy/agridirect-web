@@ -2,15 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Loader2, Package, ImagePlus, X } from 'lucide-react';
+import { Plus, Loader2, Package, ImagePlus, X, Edit, Trash2, Power } from 'lucide-react';
 import { toast } from 'sonner';
-import client from '@/lib/api';
+import client, { farmerApi } from '@/lib/api';
 import { formatINR, productImageUrl } from '@/lib/utils';
 
 export default function FarmerProducts() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
 
   const load = () => {
     setLoading(true);
@@ -21,6 +22,27 @@ export default function FarmerProducts() {
   };
   useEffect(load, []);
 
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+    try {
+      await farmerApi.deleteProduct(id);
+      toast.success('Product deleted');
+      load();
+    } catch (e) {
+      toast.error('Failed to delete product');
+    }
+  };
+
+  const handleToggle = async (id: string) => {
+    try {
+      await farmerApi.toggleAvailability(id);
+      toast.success('Availability updated');
+      load();
+    } catch (e) {
+      toast.error('Failed to update availability');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -28,7 +50,7 @@ export default function FarmerProducts() {
           <h1 className="text-3xl font-extrabold">My products</h1>
           <p className="text-ink-2 mt-1">{products.length} listings</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn-primary">
+        <button onClick={() => { setEditingProduct(null); setShowModal(true); }} className="btn-primary">
           <Plus className="size-5" /> Add product
         </button>
       </div>
@@ -40,12 +62,23 @@ export default function FarmerProducts() {
           <Package className="size-16 text-ink-3 mx-auto mb-4" />
           <h2 className="font-bold text-xl">No products yet</h2>
           <p className="text-ink-2 mt-2 mb-6">Add your first listing to start selling.</p>
-          <button onClick={() => setShowAdd(true)} className="btn-primary">+ Add product</button>
+          <button onClick={() => { setEditingProduct(null); setShowModal(true); }} className="btn-primary">+ Add product</button>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
           {products.map((p, i) => (
-            <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className="card !p-0 overflow-hidden">
+            <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className={`card !p-0 overflow-hidden relative ${!p.isAvailable ? 'opacity-60 grayscale-[0.5]' : ''}`}>
+              <div className="absolute top-2 right-2 z-10 flex gap-1">
+                <button onClick={() => handleToggle(p.id)} className={`p-1.5 rounded-full shadow-sm bg-white ${p.isAvailable ? 'text-success hover:bg-success/10' : 'text-ink-3 hover:bg-ink-3/10'}`} title={p.isAvailable ? 'Mark unavailable' : 'Mark available'}>
+                  <Power className="size-4" />
+                </button>
+                <button onClick={() => { setEditingProduct(p); setShowModal(true); }} className="p-1.5 rounded-full shadow-sm bg-white text-primary hover:bg-primary/10" title="Edit">
+                  <Edit className="size-4" />
+                </button>
+                <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded-full shadow-sm bg-white text-error hover:bg-error/10" title="Delete">
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
               <div className="aspect-[4/3] bg-bg relative overflow-hidden">
                 {productImageUrl(p) ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -64,22 +97,22 @@ export default function FarmerProducts() {
         </div>
       )}
 
-      {showAdd && <AddProductModal onClose={() => setShowAdd(false)} onSuccess={() => { setShowAdd(false); load(); }} />}
+      {showModal && <ProductModal product={editingProduct} onClose={() => setShowModal(false)} onSuccess={() => { setShowModal(false); load(); }} />}
     </div>
   );
 }
 
-function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [unit, setUnit] = useState('kg');
-  const [stock, setStock] = useState('10');
-  const [description, setDescription] = useState('');
-  const [categoryId, setCategoryId] = useState('');
+function ProductModal({ product, onClose, onSuccess }: { product?: any; onClose: () => void; onSuccess: () => void }) {
+  const [name, setName] = useState(product?.name || '');
+  const [price, setPrice] = useState(product?.price?.toString() || '');
+  const [unit, setUnit] = useState(product?.unit || 'kg');
+  const [stock, setStock] = useState(product?.stockQuantity?.toString() || '10');
+  const [description, setDescription] = useState(product?.description || '');
+  const [categoryId, setCategoryId] = useState(product?.categoryId || '');
   const [categories, setCategories] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>('');
+  const [imagePreview, setImagePreview] = useState<string>(productImageUrl(product) || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -98,7 +131,6 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
       return;
     }
     setImageFile(file);
-    // Show a local preview immediately while upload happens on submit
     const reader = new FileReader();
     reader.onload = (ev) => setImagePreview(ev.target?.result as string);
     reader.readAsDataURL(file);
@@ -118,8 +150,7 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     }
     setBusy(true);
     try {
-      // Step 1: Upload image to Cloudinary via the backend endpoint
-      let imageUrls: string[] = [];
+      let imageUrls: string[] = product?.imageUrls || [];
       if (imageFile) {
         toast.loading('Uploading image…', { id: 'img-upload' });
         try {
@@ -133,12 +164,11 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
           toast.dismiss('img-upload');
         } catch {
           toast.dismiss('img-upload');
-          toast.error('Image upload failed — product will be saved without image');
+          toast.error('Image upload failed — saving without new image');
         }
       }
 
-      // Step 2: Create product with the Cloudinary image URLs
-      await client.post('/api/farmer/products', {
+      const payload = {
         name: name.trim(),
         description: description.trim(),
         price: parseFloat(price),
@@ -147,11 +177,18 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
         minOrderQuantity: 1,
         categoryId,
         ...(imageUrls.length > 0 ? { imageUrls } : {}),
-      });
-      toast.success('Product added!');
+      };
+
+      if (product) {
+        await farmerApi.updateProduct(product.id, payload);
+        toast.success('Product updated!');
+      } else {
+        await client.post('/api/farmer/products', payload);
+        toast.success('Product added!');
+      }
       onSuccess();
     } catch (e: any) {
-      toast.error(e?.response?.data?.message ?? 'Failed to add product');
+      toast.error(e?.response?.data?.message ?? (product ? 'Failed to update' : 'Failed to add'));
     } finally {
       setBusy(false);
     }
@@ -160,7 +197,7 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-3xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-extrabold mb-6">Add product</h2>
+        <h2 className="text-2xl font-extrabold mb-6">{product ? 'Edit product' : 'Add product'}</h2>
         <div className="space-y-3">
           {/* Image Upload */}
           <div>
@@ -223,7 +260,9 @@ function AddProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
         </div>
         <div className="flex gap-2 mt-6">
           <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-          <button onClick={submit} disabled={busy} className="btn-primary flex-1">{busy ? <Loader2 className="size-5 animate-spin" /> : 'Add product'}</button>
+          <button onClick={submit} disabled={busy} className="btn-primary flex-1">
+            {busy ? <Loader2 className="size-5 animate-spin" /> : (product ? 'Save changes' : 'Add product')}
+          </button>
         </div>
       </div>
     </div>
