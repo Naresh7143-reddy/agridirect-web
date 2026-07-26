@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { subscriptionsApi } from '@/lib/api';
 import { Loader2, CalendarDays, CheckCircle2, XCircle, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -12,13 +13,8 @@ export default function SubscriptionsPage() {
 
   const fetchSubscriptions = async () => {
     try {
-      const res = await fetch('http://localhost:8080/api/subscriptions/buyer', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSubscriptions(data.data || []);
-      }
+      const res = await subscriptionsApi.listBuyer();
+      setSubscriptions(res.data || res || []);
     } catch (err) {
       toast.error('Failed to load subscriptions');
     } finally {
@@ -33,11 +29,7 @@ export default function SubscriptionsPage() {
   const handleCancel = async (id: string) => {
     setCancelling(id);
     try {
-      const res = await fetch(`http://localhost:8080/api/subscriptions/${id}/cancel`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (!res.ok) throw new Error();
+      await subscriptionsApi.cancel(id);
       toast.success('Subscription cancelled');
       fetchSubscriptions();
     } catch {

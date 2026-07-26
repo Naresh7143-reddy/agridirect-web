@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { deliveryApi } from '@/lib/api';
 import { toast } from 'sonner';
 
 export default function ProofOfDeliveryPage() {
@@ -24,24 +25,11 @@ export default function ProofOfDeliveryPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:8080/api/delivery/verify-otp/${orderId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ otp })
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to verify OTP');
-      }
-      
+      await deliveryApi.verifyOtp(orderId, otp);
       setSuccess(true);
       toast.success('Delivery Verified Successfully!');
     } catch (err: any) {
-      toast.error(err.message || 'Invalid OTP. Please try again.');
+      toast.error(err?.response?.data?.message ?? err.message ?? 'Invalid OTP. Please try again.');
     } finally {
       setLoading(false);
     }

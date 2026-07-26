@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { supportApi } from '@/lib/api';
 import { Send, Loader2, Bot, User, ArrowLeft, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -16,13 +17,8 @@ export default function SupportChatPage() {
 
   const fetchMessages = async () => {
     try {
-      const res = await fetch('http://localhost:8080/api/support/messages', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data.data || []);
-      }
+      const res = await supportApi.getMessages();
+      setMessages(res.data || res || []);
     } catch (err) {
       toast.error('Failed to load chat history');
     } finally {
@@ -50,17 +46,8 @@ export default function SupportChatPage() {
     setSending(true);
 
     try {
-      const res = await fetch('http://localhost:8080/api/support/messages', {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ content })
-      });
-      if (res.ok) {
-        await fetchMessages();
-      }
+      await supportApi.sendMessage(content);
+      await fetchMessages();
     } catch (err) {
       toast.error('Failed to send message');
       setInput(content); // restore input on failure

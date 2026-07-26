@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Star } from 'lucide-react';
 import { toast } from 'sonner';
-import { productsApi } from '@/lib/api';
+import { productsApi, reviewsApi } from '@/lib/api';
 
 export default function ReviewPage() {
   const params = useParams();
@@ -25,26 +25,17 @@ export default function ReviewPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8080/api/reviews', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          productId: id,
-          farmerId: product?.farmerId,
-          rating,
-          comment
-        })
+      await reviewsApi.create({
+        productId: id,
+        farmerId: product?.farmerId,
+        rating,
+        comment
       });
-      
-      if (!res.ok) throw new Error('Failed to submit review');
       
       toast.success('Review submitted successfully!');
       router.push(`/buyer/product/${id}`);
-    } catch (err) {
-      toast.error('Could not submit review');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Could not submit review');
     } finally {
       setLoading(false);
     }

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, Navigation, Package, MapPin, Truck } from 'lucide-react';
 import { toast } from 'sonner';
-import { buyerApi } from '@/lib/api';
+import { buyerApi, deliveryApi } from '@/lib/api';
 import { motion } from 'framer-motion';
 // Dynamic import for Leaflet map to avoid SSR issues
 import dynamic from 'next/dynamic';
@@ -25,13 +25,8 @@ export default function TrackOrderPage() {
 
   const fetchLocation = async () => {
     try {
-      const res = await fetch(`http://localhost:8080/api/delivery/location/${id}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setLocation(data.data);
-      }
+      const res = await deliveryApi.getLocation(id);
+      setLocation(res.data || res);
     } catch (e) {
       console.error(e);
     }

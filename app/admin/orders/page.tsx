@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Search, ChevronDown, Loader2, RefreshCw, IndianRupee } from 'lucide-react';
+import { ShoppingBag, Search, ChevronDown, Loader2, RefreshCw, IndianRupee, Eye, Truck, X } from 'lucide-react';
 import client from '@/lib/api';
 import { formatINR } from '@/lib/utils';
+import { toast } from 'sonner';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'ACCEPTED' | 'PACKED' | 'PICKED_UP' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
 
@@ -27,6 +28,10 @@ export default function AdminOrders() {
   const [query, setQuery]         = useState('');
   const [statusFilter, setStatus] = useState<StatusFilter>('ALL');
   const [actionId, setActionId]   = useState<string | null>(null);
+  
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [assigningAgent, setAssigningAgent] = useState(false);
+  const [agentId, setAgentId] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -44,8 +49,28 @@ export default function AdminOrders() {
     try {
       await client.put(`/api/admin/orders/${orderId}/status`, { status });
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder((prev: any) => ({ ...prev, status }));
+      }
     } catch {}
     finally { setActionId(null); }
+  };
+
+  const handleAssignAgent = async () => {
+    if (!agentId.trim() || !selectedOrder) return;
+    setAssigningAgent(true);
+    try {
+      await client.put(`/api/admin/orders/${selectedOrder.id}/delivery`, { deliveryAgentId: agentId });
+      toast.success('Agent assigned successfully');
+      // Update local state
+      setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, deliveryAgentId: agentId, status: 'ASSIGNED' } : o));
+      setSelectedOrder((prev: any) => ({ ...prev, deliveryAgentId: agentId, status: 'ASSIGNED' }));
+      setAgentId('');
+    } catch (e: any) {
+      toast.error('Failed to assign agent');
+    } finally {
+      setAssigningAgent(false);
+    }
   };
 
   const filtered = orders.filter(o => {
@@ -107,6 +132,7 @@ export default function AdminOrders() {
                 <th className="px-4 py-3 font-semibold">Payment</th>
                 <th className="px-4 py-3 font-semibold">Date</th>
                 <th className="px-4 py-3 font-semibold">Update Status</th>
+                <th className="px-4 py-3 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -132,17 +158,108 @@ export default function AdminOrders() {
                         disabled={actionId === order.id}
                         className="text-xs border border-border rounded-lg px-2 py-1 pr-6 bg-white appearance-none"
                       >
-                        {['PENDING','ACCEPTED','PACKED','PICKED_UP','IN_TRANSIT','DELIVERED','CANCELLED'].map(s => (
+                        {['PENDING','ACCEPTED','ASSIGNED','PACKED','PICKED_UP','IN_TRANSIT','DELIVERED','CANCELLED'].map(s => (
                           <option key={s} value={s}>{s}</option>
                         ))}
                       </select>
                       {actionId === order.id ? <Loader2 className="absolute right-1 top-1/2 -translate-y-1/2 size-3 animate-spin" /> : <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 size-3 text-ink-3 pointer-events-none" />}
                     </div>
                   </td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => setSelectedOrder(order)} className="btn-secondary px-3 py-1.5 text-xs text-primary bg-primary/10 hover:bg-primary/20 border-0 flex items-center gap-1">
+                      <Eye className="size-3" /> View
+                    </button>
+                  </td>
                 </motion.tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Order Detail Modal */}
+      {selectedOrder && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelectedOrder(null)}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="sticky top-0 bg-white border-b border-border p-6 flex items-center justify-between z-10">
+              <div>
+                <h2 className="text-xl font-extrabold flex items-center gap-2">Order Details</h2>
+                <div className="font-mono text-xs text-ink-2 mt-1">#{selectedOrder.id}</div>
+              </div>
+              <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-bg rounded-full transition"><X className="size-5" /></button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="card bg-bg border-0 p-4">
+                  <div className="text-xs font-bold text-ink-3 uppercase mb-1">Buyer</div>
+                  <div className="font-semibold">{selectedOrder.buyerName || 'Unknown'}</div>
+                </div>
+                <div className="card bg-bg border-0 p-4">
+                  <div className="text-xs font-bold text-ink-3 uppercase mb-1">Farmer</div>
+                  <div className="font-semibold">{selectedOrder.farmerName || 'Unknown'}</div>
+                </div>
+              </div>
+
+              <div className="card bg-primary/5 border border-primary/20">
+                <h3 className="font-extrabold text-sm flex items-center gap-2 mb-4">
+                  <Truck className="size-4 text-primary" /> Delivery Assignment
+                </h3>
+                {selectedOrder.deliveryAgentId ? (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-primary">Assigned to Agent</div>
+                      <div className="text-xs font-mono text-ink-2 mt-1">{selectedOrder.deliveryAgentId}</div>
+                    </div>
+                    <span className="bg-success/10 text-success text-xs font-bold px-3 py-1 rounded-full">Assigned</span>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-sm font-semibold mb-2 block">Assign an agent (UUID)</label>
+                    <div className="flex gap-2">
+                      <input 
+                        value={agentId} 
+                        onChange={(e) => setAgentId(e.target.value)} 
+                        className="input flex-1 py-2 text-sm" 
+                        placeholder="e.g. 123e4567-e89b-12d3..." 
+                      />
+                      <button 
+                        onClick={handleAssignAgent} 
+                        disabled={assigningAgent || !agentId.trim()} 
+                        className="btn-primary py-2 px-6"
+                      >
+                        {assigningAgent ? <Loader2 className="size-4 animate-spin" /> : 'Assign'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="font-extrabold text-sm mb-3">Items</h3>
+                <div className="space-y-2">
+                  {(selectedOrder.items || []).map((item: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center bg-bg p-3 rounded-xl text-sm">
+                      <div>
+                        <span className="font-semibold">{item.productName || 'Product'}</span>
+                        <span className="text-ink-2 ml-2">x{item.quantity}</span>
+                      </div>
+                      <div className="font-bold">{formatINR((item.price || item.pricePerUnit) * item.quantity)}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex justify-between items-center text-lg font-extrabold pt-4 border-t border-border">
+                  <span>Total Amount</span>
+                  <span className="text-primary">{formatINR(selectedOrder.totalAmount)}</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </div>
       )}
     </div>

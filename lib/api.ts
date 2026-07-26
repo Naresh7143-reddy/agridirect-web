@@ -151,6 +151,26 @@ export const paymentApi = {
   getRefund: (refundId: string) => client.get(`/api/payment/refunds/${refundId}`).then((r) => r.data),
 };
 
+export const subscriptionsApi = {
+  create: (data: any) => client.post('/api/subscriptions', data).then((r) => r.data),
+  listBuyer: () => client.get('/api/subscriptions/buyer').then((r) => r.data),
+  cancel: (id: string) => client.put(`/api/subscriptions/${id}/cancel`).then((r) => r.data),
+};
+
+export const returnsApi = {
+  create: (data: any) => client.post('/api/returns', data).then((r) => r.data),
+  listFarmer: () => client.get('/api/returns/farmer').then((r) => r.data),
+};
+
+export const reviewsApi = {
+  create: (data: any) => client.post('/api/reviews', data).then((r) => r.data),
+};
+
+export const supportApi = {
+  getMessages: () => client.get('/api/support/messages').then((r) => r.data),
+  sendMessage: (content: string) => client.post('/api/support/messages', { content }).then((r) => r.data),
+};
+
 export const buyerProfileApi = {
   update: (data: any) => client.put('/api/buyer/profile', data).then((r) => r.data),
   uploadPhoto: (file: File) => {
@@ -198,6 +218,9 @@ export const deliveryApi = {
     client.put(`/api/delivery/orders/${id}/status`, { status }).then((r) => r.data),
   getOrderById: (id: string) => client.get(`/api/delivery/orders/${id}`).then((r) => r.data),
   confirmOrder: (id: string) => client.post(`/api/delivery/orders/${id}/confirm`).then((r) => r.data),
+  verifyOtp: (orderId: string, otp: string) =>
+    client.post(`/api/delivery/verify-otp/${orderId}`, { otp }).then((r) => r.data),
+  getLocation: (id: string) => client.get(`/api/delivery/location/${id}`).then((r) => r.data),
 };
 
 export const notificationsApi = {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { farmerApi } from '@/lib/api';
+import { returnsApi } from '@/lib/api';
 import { Loader2, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatINR } from '@/lib/utils';
@@ -14,13 +15,8 @@ export default function ReturnsManagementPage() {
 
   const fetchReturns = async () => {
     try {
-      const res = await fetch('http://localhost:8080/api/returns/farmer', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setReturns(data.data || []);
-      }
+      const res = await returnsApi.listFarmer();
+      setReturns(res.data || res || []);
     } catch (err) {
       toast.error('Failed to load returns');
     } finally {

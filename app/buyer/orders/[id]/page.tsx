@@ -9,7 +9,7 @@ import {
   XCircle, Star, X, AlertTriangle, Navigation, Phone, User, Undo2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { buyerApi } from '@/lib/api';
+import { buyerApi, returnsApi } from '@/lib/api';
 import { formatINR } from '@/lib/utils';
 
 const STEPS = [
@@ -84,20 +84,12 @@ export default function OrderDetailPage() {
     if (!returnReason.trim()) { toast.error('Please provide a reason'); return; }
     setSubmittingReturn(true);
     try {
-      const res = await fetch(`http://localhost:8080/api/returns`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ orderId: id, reason: returnReason })
-      });
-      if (!res.ok) throw new Error('Failed to submit return');
+      await returnsApi.create({ orderId: id, reason: returnReason });
       toast.success('Return requested successfully');
       setShowReturnDialog(false);
       load();
     } catch (e: any) {
-      toast.error(e.message || 'Failed to submit return');
+      toast.error(e?.response?.data?.message ?? e.message ?? 'Failed to submit return');
     } finally {
       setSubmittingReturn(false);
     }

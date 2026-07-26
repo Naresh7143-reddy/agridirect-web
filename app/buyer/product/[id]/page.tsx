@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Loader2, Heart, Plus, Minus, ShoppingCart, Star, Leaf, MapPin, CalendarDays, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { productsApi, wishlistApi } from '@/lib/api';
+import { productsApi, wishlistApi, subscriptionsApi } from '@/lib/api';
 import { useCart, useWishlist } from '@/lib/store';
 import { formatINR, productImageUrl } from '@/lib/utils';
 import Cookies from 'js-cookie';
@@ -45,25 +45,17 @@ export default function ProductDetailPage() {
     }
     setSubmittingSub(true);
     try {
-      const res = await fetch(`http://localhost:8080/api/subscriptions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ 
-          productId: product.id, 
-          farmerId: product.farmerId || product.farmer?.id, 
-          frequency: subFrequency,
-          quantity: qty,
-          deliveryAddress: "Default User Address" // Placeholder for now
-        })
+      await subscriptionsApi.create({ 
+        productId: product.id, 
+        farmerId: product.farmerId || product.farmer?.id, 
+        frequency: subFrequency,
+        quantity: qty,
+        deliveryAddress: "Default User Address" // Placeholder for now
       });
-      if (!res.ok) throw new Error('Failed to subscribe');
       setSubSuccess(true);
       toast.success('Successfully subscribed!');
     } catch (e: any) {
-      toast.error(e.message || 'Failed to subscribe');
+      toast.error(e?.response?.data?.message ?? e.message ?? 'Failed to subscribe');
     } finally {
       setSubmittingSub(false);
     }
