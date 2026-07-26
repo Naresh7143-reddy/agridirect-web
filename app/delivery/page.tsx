@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import { Loader2, Truck, Package, MapPin, Phone, User, Check, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
 import client, { deliveryApi } from '@/lib/api';
@@ -292,9 +293,9 @@ export default function DeliveryHome() {
                     </button>
                   )}
                   {(o.status === 'PICKED_UP' || o.status === 'picked_up' || o.status === 'IN_TRANSIT' || o.status === 'in_transit' || o.status === 'ON_THE_WAY') && (
-                    <button onClick={() => updateStatus(o.id ?? o.orderId, 'DELIVERED')} disabled={busyId === (o.id ?? o.orderId)} className="btn-primary text-sm py-2 px-4">
-                      {busyId === (o.id ?? o.orderId) ? <Loader2 className="size-4 animate-spin" /> : <><Check className="size-4 inline mr-1" />Mark delivered</>}
-                    </button>
+                    <Link href={`/delivery/orders/${o.id ?? o.orderId}/pod`} className="btn-primary text-sm py-2 px-4 inline-flex items-center">
+                      <Check className="size-4 mr-1" /> Mark delivered (Verify OTP)
+                    </Link>
                   )}
                 </div>
               </motion.div>
