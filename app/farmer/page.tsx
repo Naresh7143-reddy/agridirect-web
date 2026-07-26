@@ -17,7 +17,6 @@ export default function FarmerHome() {
     client.get('/api/auth/me')
       .then((r) => setFarmerName(r.data?.data?.name ?? ''))
       .catch(() => {});
-      .catch(() => {});
     Promise.all([
       client.get('/api/farmer/dashboard'),
       client.get('/api/analytics/farmer')
