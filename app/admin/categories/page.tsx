@@ -27,7 +27,7 @@ export default function AdminCategories() {
     setLoading(true);
     try {
       const res = await categoriesApi.list();
-      setCats(res.data?.data ?? res || []);
+      setCats((res.data?.data ?? res) || []);
     } catch {}
     finally { setLoading(false); }
   };
