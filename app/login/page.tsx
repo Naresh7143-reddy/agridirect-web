@@ -34,11 +34,9 @@ export default function LoginPage() {
   const setupRecaptcha = () => {
     const auth = getFirebaseAuth();
     if (window.recaptchaVerifier) {
-      try { window.recaptchaVerifier.clear(); } catch {}
-      window.recaptchaVerifier = undefined;
+      return window.recaptchaVerifier;
     }
     if (recaptchaContainer.current) {
-      recaptchaContainer.current.innerHTML = '';
       window.recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaContainer.current, {
         size: 'invisible',
       });
@@ -53,6 +51,12 @@ export default function LoginPage() {
     } catch (e) {
       console.warn('Firebase not configured yet');
     }
+    return () => {
+      if (window.recaptchaVerifier) {
+        try { window.recaptchaVerifier.clear(); } catch {}
+        window.recaptchaVerifier = undefined;
+      }
+    };
   }, []);
 
   const sendOTP = async () => {

@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Loader2, Heart, Plus, Minus, ShoppingCart, Star, Leaf, MapPin, CalendarDays, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { productsApi, wishlistApi, subscriptionsApi } from '@/lib/api';
+import { productsApi, wishlistApi, subscriptionsApi, reviewsApi } from '@/lib/api';
 import { useCart, useWishlist } from '@/lib/store';
 import { formatINR, productImageUrl } from '@/lib/utils';
 import Cookies from 'js-cookie';
@@ -18,6 +19,7 @@ export default function ProductDetailPage() {
   const [mounted, setMounted] = useState(false);
 
   const [product, setProduct] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   
@@ -33,7 +35,13 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     setMounted(true);
-    productsApi.get(id).then((r) => setProduct(r.data)).finally(() => setLoading(false));
+    Promise.all([
+      productsApi.get(id).then((r) => r.data),
+      reviewsApi.getProductReviews(id).then((r) => r.data ?? r).catch(() => [])
+    ]).then(([pData, rData]) => {
+      setProduct(pData);
+      setReviews(rData);
+    }).finally(() => setLoading(false));
   }, [id]);
 
   const isBuyer = mounted && Cookies.get('user_role') === 'BUYER';
@@ -142,12 +150,18 @@ export default function ProductDetailPage() {
 
           <div className="flex items-center gap-3 mt-3">
             <div className="flex items-center gap-1">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="size-4 fill-secondary text-secondary" />
-              ))}
+              {[...Array(5)].map((_, i) => {
+                const rating = product.averageRating ?? 5.0;
+                return (
+                  <Star 
+                    key={i} 
+                    className={`size-4 ${i < Math.round(rating) ? 'fill-secondary text-secondary' : 'text-ink-3'}`} 
+                  />
+                );
+              })}
             </div>
             <span className="text-sm text-ink-2">
-              {(product.averageRating ?? 4.5).toFixed(1)} · 142 reviews
+              {(product.averageRating ?? 5.0).toFixed(1)} · {reviews.length} review{reviews.length !== 1 ? 's' : ''}
             </span>
           </div>
 
@@ -161,17 +175,17 @@ export default function ProductDetailPage() {
           )}
 
           {/* Farmer card */}
-          <div className="mt-8 p-5 rounded-2xl bg-bg flex items-center gap-4">
+          <Link href={`/buyer/farmer/${product.farmerId || product.farmer?.id}`} className="mt-8 p-5 rounded-2xl bg-bg flex items-center gap-4 hover:bg-border/40 transition block">
             <div className="size-14 rounded-full bg-primary text-white flex items-center justify-center text-xl font-extrabold">
               {(product.farmerName ?? 'F').charAt(0)}
             </div>
             <div className="flex-1">
-              <div className="font-semibold">{product.farmerName ?? 'Verified Farmer'}</div>
+              <div className="font-semibold text-ink-1 hover:text-primary transition">{product.farmerName ?? 'Verified Farmer'}</div>
               <div className="text-sm text-ink-2 flex items-center gap-1">
                 <MapPin className="size-3" /> {product.farmerLocation ?? 'India'}
               </div>
             </div>
-          </div>
+          </Link>
 
           {/* Quantity + Add + Subscribe */}
           <div className="mt-8 flex flex-col gap-4">
@@ -195,6 +209,36 @@ export default function ProductDetailPage() {
             </button>
           </div>
         </motion.div>
+      </div>
+
+      {/* Reviews Section */}
+      <div className="mt-16 border-t border-border pt-10">
+        <h2 className="text-2xl font-extrabold mb-6">Customer Reviews</h2>
+        {reviews.length === 0 ? (
+          <p className="text-ink-2 text-sm italic">No reviews yet for this product. Be the first to purchase and rate it!</p>
+        ) : (
+          <div className="space-y-6">
+            {reviews.map((r: any) => (
+              <div key={r.id} className="card bg-bg border-0 p-5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm">{r.buyerName || 'Verified Buyer'}</span>
+                  <div className="flex items-center gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <Star 
+                        key={i} 
+                        className={`size-3.5 ${i < r.rating ? 'fill-secondary text-secondary' : 'text-ink-3'}`} 
+                      />
+                    ))}
+                  </div>
+                </div>
+                <p className="text-sm text-ink-2">{r.review || r.comment || 'No comment provided.'}</p>
+                <span className="text-xs text-ink-3 block">
+                  {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Recent'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Subscribe Dialog */}

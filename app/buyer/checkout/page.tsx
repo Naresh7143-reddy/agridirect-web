@@ -24,7 +24,15 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newAddr, setNewAddr] = useState({ label: 'Home', line1: '', city: '', state: '', pincode: '' });
+  const [newAddr, setNewAddr] = useState({
+    label: 'Home',
+    line1: '',
+    city: '',
+    state: '',
+    pincode: '',
+    lat: undefined as number | undefined,
+    lng: undefined as number | undefined,
+  });
 
   useEffect(() => {
     if (items.length === 0) {
@@ -64,6 +72,8 @@ export default function CheckoutPage() {
             city: a.city || a.town || a.village || '',
             state: a.state || '',
             pincode: a.postcode || '',
+            lat: latitude,
+            lng: longitude,
           });
           toast.success('Location filled');
         } catch {
@@ -132,7 +142,7 @@ export default function CheckoutPage() {
 
         // 2. Open Razorpay checkout
         const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_placeholder', // Fallback for dev
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_placeholder', // Fallback for dev
           amount: rpAmount,
           currency: 'INR',
           name: 'AgriDirect',

@@ -49,6 +49,7 @@ export default function Navbar() {
           <NavLink href="/buyer">Home</NavLink>
           <NavLink href="/buyer/browse">Browse</NavLink>
           <NavLink href="/buyer/orders">Orders</NavLink>
+          <NavLink href="/buyer/returns">Returns</NavLink>
           <NavLink href="/buyer/support">Support</NavLink>
           <NavLink href="/buyer/ai"><Sparkles className="size-4 inline mr-1" />AI Assist</NavLink>
         </div>

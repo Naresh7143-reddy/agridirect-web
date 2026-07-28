@@ -120,6 +120,8 @@ export const productsApi = {
 
 export const categoriesApi = {
   list: () => client.get('/api/categories').then((r) => r.data),
+  get: (id: string) => client.get(`/api/categories/${id}`).then((r) => r.data),
+  getProducts: (id: string) => client.get(`/api/categories/${id}/products`).then((r) => r.data),
 };
 
 export const buyerApi = {
@@ -147,6 +149,8 @@ export const paymentApi = {
   createOrder: (data: any) => client.post('/api/payment/create-order', data).then((r) => r.data),
   verify: (data: any) => client.post('/api/payment/verify', data).then((r) => r.data),
   history: () => client.get('/api/payment/history').then((r) => r.data),
+  getPayment: (paymentId: string) => client.get(`/api/payment/${paymentId}`).then((r) => r.data),
+  getByOrder: (orderId: string) => client.get(`/api/payment/order/${orderId}`).then((r) => r.data),
   requestRefund: (paymentId: string) => client.post(`/api/payment/${paymentId}/refund`).then((r) => r.data),
   getRefund: (refundId: string) => client.get(`/api/payment/refunds/${refundId}`).then((r) => r.data),
 };
@@ -159,11 +163,14 @@ export const subscriptionsApi = {
 
 export const returnsApi = {
   create: (data: any) => client.post('/api/returns', data).then((r) => r.data),
+  listBuyer: () => client.get('/api/returns/buyer').then((r) => r.data),
   listFarmer: () => client.get('/api/returns/farmer').then((r) => r.data),
 };
 
 export const reviewsApi = {
   create: (data: any) => client.post('/api/reviews', data).then((r) => r.data),
+  getProductReviews: (productId: string) => client.get(`/api/reviews/product/${productId}`).then((r) => r.data),
+  getFarmerReviews: (farmerId: string) => client.get(`/api/reviews/farmer/${farmerId}`).then((r) => r.data),
 };
 
 export const supportApi = {
@@ -196,6 +203,7 @@ export const farmerApi = {
   getOrderDetail: (id: string) => client.get(`/api/farmer/orders/${id}`).then((r) => r.data),
   getEarnings: () => client.get('/api/farmer/earnings').then((r) => r.data),
   getDashboard: () => client.get('/api/farmer/dashboard').then((r) => r.data),
+  getPublicProfile: (farmerId: string) => client.get(`/api/farmer/${farmerId}/public`).then((r) => r.data),
 };
 
 export const deliveryApi = {
@@ -251,6 +259,16 @@ export const adminApi = {
     client.put(`/api/admin/orders/${id}/status`, { status }).then((r) => r.data),
   getAnalytics: () => client.get('/api/admin/analytics').then((r) => r.data),
   sendNotification: (data: any) => client.post('/api/admin/notifications', data).then((r) => r.data),
+  getUserDetail: (id: string) => client.get(`/api/admin/users/${id}`).then((r) => r.data),
+  createCategory: (data: any) => client.post('/api/admin/categories', data).then((r) => r.data),
+  updateCategory: (id: string, data: any) => client.put(`/api/admin/categories/${id}`, data).then((r) => r.data),
+  deleteCategory: (id: string) => client.delete(`/api/admin/categories/${id}`).then((r) => r.data),
+  toggleCategory: (id: string) => client.put(`/api/admin/categories/${id}/toggle`).then((r) => r.data),
+  uploadCategoryImage: (id: string, file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return client.post(`/api/admin/categories/${id}/image`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+  },
 };
 
 export const aiApi = {
