@@ -22,7 +22,13 @@ function BrowseInner() {
   const [query, setQuery] = useState(initial);
 
   useEffect(() => {
-    productsApi.list().then((r) => setProducts(r.data || [])).finally(() => setLoading(false));
+    productsApi.list()
+      .then((r) => {
+        const list = Array.isArray(r?.data) ? r.data : Array.isArray(r) ? r : Array.isArray(r?.data?.data) ? r.data.data : [];
+        setProducts(list);
+      })
+      .catch(() => setProducts([]))
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = products.filter((p) =>

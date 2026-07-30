@@ -18,8 +18,10 @@ export default function BuyerHome() {
   useEffect(() => {
     Promise.all([productsApi.list().catch(() => null), categoriesApi.list().catch(() => null)])
       .then(([p, c]) => {
-        if (p?.data) setProducts(p.data);
-        if (c?.data) setCategories(c.data);
+        const pList = Array.isArray(p?.data) ? p.data : Array.isArray(p) ? p : Array.isArray(p?.data?.data) ? p.data.data : [];
+        const cList = Array.isArray(c?.data) ? c.data : Array.isArray(c) ? c : Array.isArray(c?.data?.data) ? c.data.data : [];
+        setProducts(pList);
+        setCategories(cList);
       })
       .finally(() => setLoading(false));
   }, []);
