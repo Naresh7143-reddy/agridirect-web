@@ -16,12 +16,20 @@ export default function FarmerProfile() {
   const [loading, setLoading] = useState(true);
   const [editingBank, setEditingBank] = useState(false);
   const [savingBank, setSavingBank] = useState(false);
+  const [editingFarm, setEditingFarm] = useState(false);
+  const [savingFarm, setSavingFarm] = useState(false);
   const [bankForm, setBankForm] = useState({
     accountHolderName: '',
     accountNumber: '',
     ifscCode: '',
     bankName: '',
     upiId: '',
+  });
+  const [farmForm, setFarmForm] = useState({
+    farmName: '',
+    location: '',
+    farmLat: 17.398,
+    farmLng: 78.492,
   });
 
   useEffect(() => {
@@ -35,6 +43,12 @@ export default function FarmerProfile() {
       setProfile(p);
       setStats(s);
       setBankDetails(b);
+      if (p) setFarmForm({
+        farmName: p.farmName || '',
+        location: typeof p.location === 'string' ? p.location : p.location?.address || '',
+        farmLat: p.farmLat ?? 17.398,
+        farmLng: p.farmLng ?? 78.492,
+      });
       if (b) setBankForm({
         accountHolderName: b.accountHolderName || '',
         accountNumber: b.accountNumber || '',
@@ -49,6 +63,36 @@ export default function FarmerProfile() {
     clearAuthCookies();
     toast.success('Signed out');
     router.push('/');
+  };
+
+  const saveFarmDetails = async () => {
+    setSavingFarm(true);
+    try {
+      const res = await farmerApi.updateProfile(farmForm);
+      setProfile(res.data ?? res);
+      setEditingFarm(false);
+      toast.success('Farm details saved!');
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message ?? 'Failed to save farm details');
+    } finally {
+      setSavingFarm(false);
+    }
+  };
+
+  const useCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setFarmForm((prev) => ({
+            ...prev,
+            farmLat: Number(pos.coords.latitude.toFixed(6)),
+            farmLng: Number(pos.coords.longitude.toFixed(6)),
+          }));
+          toast.success('Coordinates updated from GPS!');
+        },
+        () => toast.error('Could not get GPS location')
+      );
+    }
   };
 
   const saveBankDetails = async () => {
@@ -131,21 +175,99 @@ export default function FarmerProfile() {
 
       {/* Farm details */}
       {profile && (
-        <div className="card space-y-3">
-          <h2 className="font-extrabold text-lg">Farm details</h2>
-          {profile.farmName && <Info icon={Wheat} label="Farm name" value={String(profile.farmName)} />}
-          {profile.location && (
-            <Info
-              icon={MapPin}
-              label="Location"
-              value={
-                typeof profile.location === 'string'
-                  ? profile.location
-                  : [profile.location.address, profile.location.city, profile.location.state]
-                      .filter(Boolean)
-                      .join(', ') || JSON.stringify(profile.location)
-              }
-            />
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-extrabold text-lg flex items-center gap-2">
+              <Wheat className="size-5 text-primary" /> Farm details
+            </h2>
+            {!editingFarm && (
+              <button onClick={() => setEditingFarm(true)} className="text-sm font-bold text-primary hover:underline">
+                Edit
+              </button>
+            )}
+          </div>
+
+          {editingFarm ? (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-semibold mb-1">Farm Name</label>
+                <input
+                  value={farmForm.farmName}
+                  onChange={(e) => setFarmForm({ ...farmForm, farmName: e.target.value })}
+                  className="input w-full"
+                  placeholder="Green Valley Farm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">Farm Address / Location</label>
+                <input
+                  value={farmForm.location}
+                  onChange={(e) => setFarmForm({ ...farmForm, location: e.target.value })}
+                  className="input w-full"
+                  placeholder="Village, District, State"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-ink-2">Latitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={farmForm.farmLat}
+                    onChange={(e) => setFarmForm({ ...farmForm, farmLat: parseFloat(e.target.value) || 0 })}
+                    className="input w-full text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-ink-2">Longitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={farmForm.farmLng}
+                    onChange={(e) => setFarmForm({ ...farmForm, farmLng: parseFloat(e.target.value) || 0 })}
+                    className="input w-full text-xs font-mono"
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={useCurrentLocation}
+                className="text-xs font-bold text-primary hover:underline flex items-center gap-1 py-1"
+              >
+                <MapPin className="size-3" /> Auto-fill from current GPS location
+              </button>
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => setEditingFarm(false)} className="btn-secondary flex-1">Cancel</button>
+                <button onClick={saveFarmDetails} disabled={savingFarm} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                  {savingFarm ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {profile.farmName && <Info icon={Wheat} label="Farm name" value={String(profile.farmName)} />}
+              {profile.location && (
+                <Info
+                  icon={MapPin}
+                  label="Location"
+                  value={
+                    typeof profile.location === 'string'
+                      ? profile.location
+                      : [profile.location.address, profile.location.city, profile.location.state]
+                          .filter(Boolean)
+                          .join(', ') || JSON.stringify(profile.location)
+                  }
+                />
+              )}
+              {profile.farmLat != null && profile.farmLng != null && (
+                <Info
+                  icon={MapPin}
+                  label="GPS Coordinates"
+                  value={`${profile.farmLat}, ${profile.farmLng}`}
+                />
+              )}
+            </div>
           )}
         </div>
       )}

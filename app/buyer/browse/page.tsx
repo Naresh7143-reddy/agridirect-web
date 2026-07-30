@@ -24,7 +24,8 @@ function BrowseInner() {
   useEffect(() => {
     productsApi.list()
       .then((r) => {
-        const list = Array.isArray(r?.data) ? r.data : Array.isArray(r) ? r : Array.isArray(r?.data?.data) ? r.data.data : [];
+        const raw = r?.data?.data ?? r?.data ?? r;
+        const list = Array.isArray(raw) ? raw : [];
         setProducts(list);
       })
       .catch(() => setProducts([]))

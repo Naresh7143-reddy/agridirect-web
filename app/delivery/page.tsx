@@ -102,56 +102,12 @@ export default function DeliveryHome() {
         const assignedData = (a as any).data?.data ?? [];
         const availableData = (p as any).data?.data ?? [];
         
-        // Mock default sample orders if pool is empty for rich demo
-        const mockAvailable: OrderItem[] = availableData.length > 0 ? availableData : [
-          {
-            id: 'ORD-9821',
-            totalAmount: 1450,
-            deliveryFee: 120,
-            distance: 3.4,
-            estimatedMinutes: 22,
-            priority: 'EXPRESS',
-            status: 'AVAILABLE',
-            farmerName: 'Ramesh Farm',
-            farmerPhone: '+91 98765 43210',
-            pickupAddress: 'Sector 4, Green Valley Organic Farm, Hyd',
-            pickupLat: 17.398,
-            pickupLng: 78.492,
-            buyerName: 'Anita Sharma',
-            buyerPhone: '+91 91234 56789',
-            dropAddress: 'Flat 402, Sunshine Heights, Jubilee Hills',
-            dropLat: 17.432,
-            dropLng: 78.407,
-            itemCount: 4,
-          },
-          {
-            id: 'ORD-9825',
-            totalAmount: 2800,
-            deliveryFee: 185,
-            distance: 6.8,
-            estimatedMinutes: 35,
-            priority: 'HIGH',
-            status: 'AVAILABLE',
-            farmerName: 'Sita Farmers Co-op',
-            farmerPhone: '+91 98111 22334',
-            pickupAddress: 'Plot 12, Agri Hub, Shamshabad',
-            pickupLat: 17.24,
-            pickupLng: 78.429,
-            buyerName: 'Gourmet Fresh Market',
-            buyerPhone: '+91 97777 88899',
-            dropAddress: 'Banjara Hills Road No. 12',
-            dropLat: 17.415,
-            dropLng: 78.448,
-            itemCount: 8,
-          },
-        ];
-
         setAssigned(assignedData);
-        setAvailable(mockAvailable);
+        setAvailable(availableData);
         if (assignedData.length > 0) {
           setSelectedOrderForMap(assignedData[0]);
-        } else if (mockAvailable.length > 0) {
-          setSelectedOrderForMap(mockAvailable[0]);
+        } else if (availableData.length > 0) {
+          setSelectedOrderForMap(availableData[0]);
         }
       })
       .finally(() => setLoading(false));
@@ -597,18 +553,26 @@ export default function DeliveryHome() {
 
                   {/* Compact Pickup / Drop details */}
                   <div className="space-y-2 text-xs">
-                    <div className="flex items-start gap-2">
-                      <span className="size-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                      <div>
-                        <span className="font-bold text-slate-700 dark:text-slate-300">Farm: </span>
-                        <span className="text-slate-500">{o.farmerName || o.pickupAddress}</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
+                        <span className="size-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                        <div>
+                          <span className="font-bold text-slate-700 dark:text-slate-300">Pickup: </span>
+                          <span className="text-slate-500">{o.farmerName || o.pickupAddress || 'Farm Location'}</span>
+                        </div>
                       </div>
+                      <button
+                        onClick={() => setSelectedOrderForMap(o)}
+                        className="text-[11px] font-bold text-emerald-600 hover:underline shrink-0 flex items-center gap-1"
+                      >
+                        <MapIcon className="size-3" /> Map
+                      </button>
                     </div>
                     <div className="flex items-start gap-2">
                       <span className="size-2 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
                       <div>
                         <span className="font-bold text-slate-700 dark:text-slate-300">Drop: </span>
-                        <span className="text-slate-500">{o.buyerName || o.dropAddress}</span>
+                        <span className="text-slate-500">{o.buyerName || o.dropAddress || 'Delivery Address'}</span>
                       </div>
                     </div>
                   </div>
