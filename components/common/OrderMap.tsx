@@ -7,18 +7,18 @@ import 'leaflet/dist/leaflet.css';
 
 const customIcon = (color: string, label: string) => L.divIcon({
   className: 'custom-leaflet-marker',
-  html: `<div style="background-color: ${color}; width: 28px; height: 28px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; color: white;">${label}</div>`,
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
+  html: `<div style="background-color: ${color}; width: 32px; height: 32px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; color: white;">${label}</div>`,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
 });
 
 const farmerIcon = customIcon('#F97316', '🌾');
 const buyerIcon = customIcon('#2563EB', '🏠');
 const agentIcon = L.divIcon({
   className: 'custom-leaflet-marker pulse-marker',
-  html: `<div style="background-color: #10B981; width: 34px; height: 34px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 14px rgba(16,185,129,0.5); display: flex; align-items: center; justify-content: center; font-size: 16px;">🚲</div>`,
-  iconSize: [34, 34],
-  iconAnchor: [17, 17],
+  html: `<div style="background-color: #10B981; width: 36px; height: 36px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 14px rgba(16,185,129,0.5); display: flex; align-items: center; justify-content: center; font-size: 18px;">🚲</div>`,
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
 });
 
 function MapBounds({ agent, drop, pickup }: { agent?: [number, number], drop?: [number, number], pickup?: [number, number] }) {
@@ -26,29 +26,39 @@ function MapBounds({ agent, drop, pickup }: { agent?: [number, number], drop?: [
   useEffect(() => {
     const points: [number, number][] = [];
     if (agent) points.push(agent);
-    if (drop) points.push(drop);
     if (pickup) points.push(pickup);
+    if (drop) points.push(drop);
     if (points.length > 0) {
       const bounds = L.latLngBounds(points);
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
     }
   }, [map, agent, drop, pickup]);
   return null;
 }
 
 export default function OrderMap({
-  agentLocation, dropLocation, pickupLocation
+  agentLocation, dropLocation, pickupLocation, isPickedUp
 }: {
   agentLocation?: [number, number];
   dropLocation?: [number, number];
   pickupLocation?: [number, number];
+  isPickedUp?: boolean;
 }) {
-  const center = agentLocation || dropLocation || pickupLocation || [17.3850, 78.4867]; // Default Hyderabad
+  const center = agentLocation || pickupLocation || dropLocation || [13.0035, 80.0030]; // Default location
 
-  const polylinePoints: [number, number][] = [];
-  if (pickupLocation) polylinePoints.push(pickupLocation);
-  if (agentLocation) polylinePoints.push(agentLocation);
-  if (dropLocation) polylinePoints.push(dropLocation);
+  // Route 1: Delivery Partner -> Farm Pickup (Phase 1)
+  const partnerToFarmRoute: [number, number][] = [];
+  if (agentLocation) partnerToFarmRoute.push(agentLocation);
+  if (pickupLocation) partnerToFarmRoute.push(pickupLocation);
+
+  // Route 2: Farm / Partner -> Buyer Dropoff (Phase 2)
+  const farmToBuyerRoute: [number, number][] = [];
+  if (isPickedUp && agentLocation) {
+    farmToBuyerRoute.push(agentLocation);
+  } else if (pickupLocation) {
+    farmToBuyerRoute.push(pickupLocation);
+  }
+  if (dropLocation) farmToBuyerRoute.push(dropLocation);
 
   return (
     <MapContainer center={center as [number, number]} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%', borderRadius: '1.5rem' }}>
@@ -59,16 +69,16 @@ export default function OrderMap({
       {pickupLocation && (
         <Marker position={pickupLocation} icon={farmerIcon}>
           <Popup className="custom-popup">
-            <div className="font-bold text-sm">🌾 Farm Pickup</div>
-            <div className="text-xs text-gray-600">Collect fresh produce here</div>
+            <div className="font-bold text-sm">🌾 Farm Pickup Location</div>
+            <div className="text-xs text-gray-600">Collect fresh produce from farmer here</div>
           </Popup>
         </Marker>
       )}
       {dropLocation && (
         <Marker position={dropLocation} icon={buyerIcon}>
           <Popup className="custom-popup">
-            <div className="font-bold text-sm">🏠 Buyer Dropoff</div>
-            <div className="text-xs text-gray-600">Deliver order to buyer</div>
+            <div className="font-bold text-sm">🏠 Buyer Delivery Location</div>
+            <div className="text-xs text-gray-600">Deliver order to buyer address</div>
           </Popup>
         </Marker>
       )}
@@ -76,15 +86,24 @@ export default function OrderMap({
         <Marker position={agentLocation} icon={agentIcon}>
           <Popup className="custom-popup">
             <div className="font-bold text-sm">🚲 Delivery Partner (You)</div>
-            <div className="text-xs text-green-600 font-semibold">Live Location Updating</div>
+            <div className="text-xs text-emerald-600 font-semibold">Live GPS Location Active</div>
           </Popup>
         </Marker>
       )}
 
-      {polylinePoints.length > 1 && (
+      {/* Phase 1 Route: Delivery Partner -> Farm */}
+      {!isPickedUp && partnerToFarmRoute.length > 1 && (
         <Polyline
-          positions={polylinePoints}
-          pathOptions={{ color: '#2563EB', weight: 4, opacity: 0.7, dashArray: '8, 8' }}
+          positions={partnerToFarmRoute}
+          pathOptions={{ color: '#F97316', weight: 5, opacity: 0.8, dashArray: '6, 8' }}
+        />
+      )}
+
+      {/* Phase 2 Route: Farm / Partner -> Buyer Dropoff */}
+      {farmToBuyerRoute.length > 1 && (
+        <Polyline
+          positions={farmToBuyerRoute}
+          pathOptions={{ color: isPickedUp ? '#10B981' : '#2563EB', weight: 5, opacity: isPickedUp ? 0.9 : 0.4, dashArray: isPickedUp ? undefined : '4, 6' }}
         />
       )}
 
@@ -92,3 +111,4 @@ export default function OrderMap({
     </MapContainer>
   );
 }
+

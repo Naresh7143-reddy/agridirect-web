@@ -227,25 +227,28 @@ export default function OrderDetailPage() {
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="card">
             <h2 className="font-extrabold text-lg mb-4">Items</h2>
             <div className="space-y-3">
-              {(order.items ?? []).map((item: any, i: number) => (
-                <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-bg">
-                  <div className="size-14 rounded-xl bg-gradient-to-br from-green-100 to-yellow-100 flex items-center justify-center text-2xl shrink-0 overflow-hidden">
-                    {item.productImage || item.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.productImage || item.imageUrl} alt={item.productName || item.name} className="w-full h-full object-cover" />
-                    ) : '🥬'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold truncate">{item.productName || item.name}</div>
-                    <div className="text-sm text-ink-2">
-                      {item.quantity} × {formatINR(item.pricePerUnit || item.price)} / {item.unit || 'kg'}
+              {(order.items ?? []).map((item: any, i: number) => {
+                const itemPrice = item.priceAtOrder ?? item.pricePerUnit ?? item.price ?? 0;
+                return (
+                  <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-bg">
+                    <div className="size-14 rounded-xl bg-gradient-to-br from-green-100 to-yellow-100 flex items-center justify-center text-2xl shrink-0 overflow-hidden">
+                      {item.productImage || item.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.productImage || item.imageUrl} alt={item.productName || item.name} className="w-full h-full object-cover" />
+                      ) : '🥬'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate">{item.productName || item.name}</div>
+                      <div className="text-sm text-ink-2">
+                        {item.quantity} × {formatINR(itemPrice)} / {item.unit || 'kg'}
+                      </div>
+                    </div>
+                    <div className="font-extrabold text-primary shrink-0">
+                      {formatINR(itemPrice * item.quantity)}
                     </div>
                   </div>
-                  <div className="font-extrabold text-primary shrink-0">
-                    {formatINR((item.pricePerUnit || item.price) * item.quantity)}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </motion.div>
 

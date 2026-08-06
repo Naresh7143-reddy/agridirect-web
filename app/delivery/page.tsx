@@ -159,9 +159,11 @@ export default function DeliveryHome() {
 
   const claim = async (id: string) => {
     setBusyId(id);
+    const claimedObj = available.find((o) => o.id === id);
     try {
       await client.post(`/api/delivery/orders/${id}/claim`);
-      toast.success('🎉 Order claimed! Check your active deliveries.');
+      toast.success('🎉 Order claimed! Loaded route on map.');
+      if (claimedObj) setSelectedOrderForMap(claimedObj);
       load();
     } catch (e: any) {
       toast.error(e?.response?.data?.message ?? 'Could not claim order');
@@ -288,11 +290,15 @@ export default function DeliveryHome() {
                 ? [pickupLoc[0] + 0.015, pickupLoc[1] + 0.015] // Fallback slightly offset from farm if buyer lat/lng not set
                 : undefined;
 
+            const statusUpper = selectedOrderForMap?.status?.toUpperCase() ?? '';
+            const isPickedUp = ['PICKED_UP', 'IN_TRANSIT', 'ON_THE_WAY', 'DELIVERED'].includes(statusUpper);
+
             return (
               <OrderMap
                 agentLocation={currentCoords || undefined}
                 pickupLocation={pickupLoc}
                 dropLocation={dropLoc}
+                isPickedUp={isPickedUp}
               />
             );
           })()}

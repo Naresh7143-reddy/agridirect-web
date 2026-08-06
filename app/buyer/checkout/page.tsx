@@ -109,6 +109,13 @@ export default function CheckoutPage() {
     }
     setPlacing(true);
 
+    const selectedAddrObj = addresses.find((a) => a.id === selectedAddressId);
+    const formattedAddressStr = selectedAddrObj
+      ? typeof selectedAddrObj === 'string'
+        ? selectedAddrObj
+        : [selectedAddrObj.line1 || selectedAddrObj.label, selectedAddrObj.city, selectedAddrObj.state, selectedAddrObj.pincode].filter(Boolean).join(', ')
+      : 'Delivery Address';
+
     const orderPayload = {
       items: items.map((i) => ({
         productId: i.productId,
@@ -117,6 +124,9 @@ export default function CheckoutPage() {
         unit: i.unit || 'kg',
       })),
       addressId: selectedAddressId,
+      deliveryAddress: formattedAddressStr,
+      deliveryLat: selectedAddrObj?.lat ?? selectedAddrObj?.latitude ?? 13.0035,
+      deliveryLng: selectedAddrObj?.lng ?? selectedAddrObj?.longitude ?? 80.0030,
       paymentMethod: payment,
       deliveryFee: delivery,
       platformFee: PLATFORM_FEE,
