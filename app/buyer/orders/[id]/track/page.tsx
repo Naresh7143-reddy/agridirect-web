@@ -66,8 +66,8 @@ export default function TrackOrderPage() {
   const pickupLng = order?.pickupLng ?? order?.farmerLng ?? null;
 
   const agentLocation: [number, number] | undefined = agentLat && agentLng && agentLat !== 0 ? [Number(agentLat), Number(agentLng)] : undefined;
-  const dropLocation: [number, number] | undefined = dropLat && dropLng ? [Number(dropLat), Number(dropLng)] : undefined;
   const pickupLocation: [number, number] | undefined = pickupLat && pickupLng ? [Number(pickupLat), Number(pickupLng)] : undefined;
+  const dropLocation: [number, number] | undefined = dropLat && dropLng && Number(dropLat) !== 0 ? [Number(dropLat), Number(dropLng)] : pickupLocation ? [pickupLocation[0] + 0.015, pickupLocation[1] + 0.015] : undefined;
 
   return (
     <div className="max-w-4xl mx-auto h-[80vh] flex flex-col">

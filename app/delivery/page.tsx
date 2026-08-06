@@ -270,24 +270,29 @@ export default function DeliveryHome() {
 
         <div className="h-[380px] w-full rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl relative backdrop-blur-md bg-white/50 dark:bg-slate-900/50">
           {(() => {
-            const statusUpper = selectedOrderForMap?.status?.toUpperCase() ?? '';
-            const isPickedUp = ['PICKED_UP', 'IN_TRANSIT', 'ON_THE_WAY', 'DELIVERED'].includes(statusUpper);
+            const rawDropLat = selectedOrderForMap?.dropLat ?? (selectedOrderForMap as any)?.deliveryLat ?? (typeof selectedOrderForMap?.dropAddress === 'object' ? (selectedOrderForMap?.dropAddress as any)?.lat : null);
+            const rawDropLng = selectedOrderForMap?.dropLng ?? (selectedOrderForMap as any)?.deliveryLng ?? (typeof selectedOrderForMap?.dropAddress === 'object' ? (selectedOrderForMap?.dropAddress as any)?.lng : null);
+
+            const rawPickupLat = selectedOrderForMap?.pickupLat ?? (selectedOrderForMap as any)?.farmerLat;
+            const rawPickupLng = selectedOrderForMap?.pickupLng ?? (selectedOrderForMap as any)?.farmerLng;
 
             const pickupLoc: [number, number] | undefined =
-              selectedOrderForMap?.pickupLat && selectedOrderForMap?.pickupLng
-                ? [selectedOrderForMap.pickupLat, selectedOrderForMap.pickupLng]
+              rawPickupLat && rawPickupLng && Number(rawPickupLat) !== 0
+                ? [Number(rawPickupLat), Number(rawPickupLng)]
                 : undefined;
 
-            const dropLoc: [number, number] | undefined =
-              selectedOrderForMap?.dropLat && selectedOrderForMap?.dropLng
-                ? [selectedOrderForMap.dropLat, selectedOrderForMap.dropLng]
+            let dropLoc: [number, number] | undefined =
+              rawDropLat && rawDropLng && Number(rawDropLat) !== 0
+                ? [Number(rawDropLat), Number(rawDropLng)]
+                : pickupLoc
+                ? [pickupLoc[0] + 0.015, pickupLoc[1] + 0.015] // Fallback slightly offset from farm if buyer lat/lng not set
                 : undefined;
 
             return (
               <OrderMap
                 agentLocation={currentCoords || undefined}
-                pickupLocation={!isPickedUp ? pickupLoc : undefined}
-                dropLocation={isPickedUp ? dropLoc : pickupLoc ? undefined : dropLoc}
+                pickupLocation={pickupLoc}
+                dropLocation={dropLoc}
               />
             );
           })()}
