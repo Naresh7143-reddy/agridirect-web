@@ -228,7 +228,7 @@ export const deliveryApi = {
   confirmOrder: (id: string) => client.post(`/api/delivery/orders/${id}/confirm`).then((r) => r.data),
   verifyOtp: (orderId: string, otp: string) =>
     client.post(`/api/delivery/verify-otp/${orderId}`, { otp }).then((r) => r.data),
-  getLocation: (id: string) => client.get(`/api/delivery/location/${id}`).then((r) => r.data),
+  getLocation: (id: string) => client.get(`/api/buyer/orders/${id}/agent-location`).then((r) => r.data),
 };
 
 export const notificationsApi = {

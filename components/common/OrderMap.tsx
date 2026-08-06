@@ -47,7 +47,7 @@ export default function OrderMap({
 
   const polylinePoints: [number, number][] = [];
   if (pickupLocation) polylinePoints.push(pickupLocation);
-  if (agentLocation && !pickupLocation) polylinePoints.push(agentLocation);
+  if (agentLocation) polylinePoints.push(agentLocation);
   if (dropLocation) polylinePoints.push(dropLocation);
 
   return (

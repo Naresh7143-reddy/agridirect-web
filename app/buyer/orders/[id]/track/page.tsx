@@ -55,9 +55,19 @@ export default function TrackOrderPage() {
 
   if (!order) return <div className="text-center py-20 font-bold">Order not found</div>;
 
-  // Resolve delivery coordinates from the order detail fields
-  const dropLat = order.deliveryLat ?? null;
-  const dropLng = order.deliveryLng ?? null;
+  // Resolve coordinates from backend order & location responses
+  const agentLat = location?.lat ?? location?.latitude ?? null;
+  const agentLng = location?.lng ?? location?.longitude ?? null;
+
+  const dropLat = order?.dropLat ?? order?.deliveryLat ?? (typeof order?.deliveryAddress === 'object' ? order?.deliveryAddress?.lat : null);
+  const dropLng = order?.dropLng ?? order?.deliveryLng ?? (typeof order?.deliveryAddress === 'object' ? order?.deliveryAddress?.lng : null);
+
+  const pickupLat = order?.pickupLat ?? order?.farmerLat ?? null;
+  const pickupLng = order?.pickupLng ?? order?.farmerLng ?? null;
+
+  const agentLocation: [number, number] | undefined = agentLat && agentLng && agentLat !== 0 ? [Number(agentLat), Number(agentLng)] : undefined;
+  const dropLocation: [number, number] | undefined = dropLat && dropLng ? [Number(dropLat), Number(dropLng)] : undefined;
+  const pickupLocation: [number, number] | undefined = pickupLat && pickupLng ? [Number(pickupLat), Number(pickupLng)] : undefined;
 
   return (
     <div className="max-w-4xl mx-auto h-[80vh] flex flex-col">
@@ -72,38 +82,52 @@ export default function TrackOrderPage() {
 
       <div className="flex-1 rounded-3xl overflow-hidden shadow-card border-2 border-border relative">
         <OrderMap 
-          agentLocation={location?.latitude && location?.longitude ? [location.latitude, location.longitude] : undefined}
-          dropLocation={
-            dropLat && dropLng
-              ? [dropLat, dropLng]
-              : [17.3850, 78.4867]
-          }
+          agentLocation={agentLocation}
+          dropLocation={dropLocation}
+          pickupLocation={pickupLocation}
         />
         
-        {/* Overlay Info Card */}
-        <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-white rounded-2xl shadow-lg border border-border p-4 z-[1000]">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="size-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-              <Truck className="size-5" />
+        {/* Overlay Info Card - Swiggy/Zomato Style */}
+        <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-white rounded-2xl shadow-xl border border-border p-5 z-[1000]">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="size-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xl border-2 border-emerald-500">
+                {location?.agentName ? location.agentName.charAt(0).toUpperCase() : '🚲'}
+              </div>
+              <div>
+                <div className="font-extrabold text-ink-1 text-base">{location?.agentName || 'Delivery Partner'}</div>
+                <div className="flex items-center gap-2 text-xs text-ink-2 mt-0.5">
+                  <span className="bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded border border-emerald-200">
+                    ⭐ {(location?.rating || 4.5).toFixed(1)}
+                  </span>
+                  <span>• {location?.vehicleType || 'BIKE'} {location?.vehicleRegistration ? `(${location.vehicleRegistration})` : ''}</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="font-bold text-ink-1">Arriving Soon</div>
-              <div className="text-sm text-ink-2">Your delivery agent is on the way.</div>
-            </div>
+
+            {location?.agentPhone && (
+              <a
+                href={`tel:${location.agentPhone}`}
+                className="size-11 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-md transition active:scale-95 shrink-0"
+                title="Call Delivery Partner"
+              >
+                <Phone className="size-5" />
+              </a>
+            )}
           </div>
           
-          <div className="space-y-3 pt-3 border-t border-border">
+          <div className="space-y-2.5 pt-3 border-t border-border">
+            <div className="flex items-center justify-between text-xs text-ink-2 font-medium">
+              <span>Status: <strong className="text-emerald-600 uppercase">{location?.status?.replace(/_/g, ' ') || 'ON THE WAY'}</strong></span>
+              {location?.totalDeliveries ? <span>{location.totalDeliveries} orders delivered</span> : null}
+            </div>
             <div className="flex items-center gap-3">
-              <MapPin className="size-4 text-ink-3 shrink-0" />
-              <div className="text-sm text-ink-1 truncate">
+              <MapPin className="size-4 text-primary shrink-0" />
+              <div className="text-sm font-semibold text-ink-1 truncate">
                 {typeof order.deliveryAddress === 'string'
                   ? order.deliveryAddress
                   : order.deliveryAddress?.label || 'Delivery Address'}
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Package className="size-4 text-ink-3 shrink-0" />
-              <div className="text-sm text-ink-1 truncate">₹{order.totalAmount}</div>
             </div>
           </div>
         </motion.div>
