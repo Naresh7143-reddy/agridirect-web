@@ -85,7 +85,7 @@ export default function DeliveryHome() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
-  const [currentCoords, setCurrentCoords] = useState<[number, number] | null>([17.3850, 78.4867]);
+  const [currentCoords, setCurrentCoords] = useState<[number, number] | null>(null);
   const [selectedOrderForMap, setSelectedOrderForMap] = useState<OrderItem | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('distance');
   const [searchQuery, setSearchQuery] = useState('');
@@ -269,19 +269,28 @@ export default function DeliveryHome() {
         </div>
 
         <div className="h-[380px] w-full rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl relative backdrop-blur-md bg-white/50 dark:bg-slate-900/50">
-          <OrderMap
-            agentLocation={currentCoords || undefined}
-            pickupLocation={
+          {(() => {
+            const statusUpper = selectedOrderForMap?.status?.toUpperCase() ?? '';
+            const isPickedUp = ['PICKED_UP', 'IN_TRANSIT', 'ON_THE_WAY', 'DELIVERED'].includes(statusUpper);
+
+            const pickupLoc: [number, number] | undefined =
               selectedOrderForMap?.pickupLat && selectedOrderForMap?.pickupLng
                 ? [selectedOrderForMap.pickupLat, selectedOrderForMap.pickupLng]
-                : [17.398, 78.492]
-            }
-            dropLocation={
+                : undefined;
+
+            const dropLoc: [number, number] | undefined =
               selectedOrderForMap?.dropLat && selectedOrderForMap?.dropLng
                 ? [selectedOrderForMap.dropLat, selectedOrderForMap.dropLng]
-                : [17.432, 78.407]
-            }
-          />
+                : undefined;
+
+            return (
+              <OrderMap
+                agentLocation={currentCoords || undefined}
+                pickupLocation={!isPickedUp ? pickupLoc : undefined}
+                dropLocation={isPickedUp ? dropLoc : pickupLoc ? undefined : dropLoc}
+              />
+            );
+          })()}
         </div>
       </section>
 
