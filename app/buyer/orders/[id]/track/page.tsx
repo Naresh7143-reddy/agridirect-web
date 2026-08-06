@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, Navigation, Package, MapPin, Truck } from 'lucide-react';
+import { ArrowLeft, Loader2, Navigation, Package, MapPin, Truck, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { buyerApi, deliveryApi } from '@/lib/api';
 import { motion } from 'framer-motion';
