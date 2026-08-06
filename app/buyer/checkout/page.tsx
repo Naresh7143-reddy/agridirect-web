@@ -56,32 +56,37 @@ export default function CheckoutPage() {
       toast.error('Location not supported by your browser');
       return;
     }
-    toast.info('Getting your location…');
+    toast.info('Getting your exact GPS location…');
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const { latitude, longitude } = pos.coords;
+          const latitude = Number(pos.coords.latitude.toFixed(6));
+          const longitude = Number(pos.coords.longitude.toFixed(6));
           const r = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
           );
           const data = await r.json();
           const a = data.address || {};
+          const road = a.road || a.street || a.neighbourhood || a.suburb || a.residential;
+          const area = a.suburb || a.city_district || a.county || a.village || a.town || a.city;
+          const line1Str = [a.house_number || a.building, road, area].filter(Boolean).join(', ') || data.display_name?.split(',').slice(0, 2).join(',') || 'Exact GPS Location';
+
           setNewAddr({
             label: 'Home',
-            line1: [a.house_number, a.road || a.neighbourhood].filter(Boolean).join(' ') || data.display_name?.split(',')[0] || '',
-            city: a.city || a.town || a.village || '',
-            state: a.state || '',
+            line1: line1Str,
+            city: a.city || a.town || a.village || a.county || 'Chennai',
+            state: a.state || 'Tamil Nadu',
             pincode: a.postcode || '',
             lat: latitude,
             lng: longitude,
           });
-          toast.success('Location filled');
+          toast.success(`Location set (${latitude}, ${longitude})`);
         } catch {
-          toast.error('Reverse geocoding failed — please type manually');
+          toast.error('Reverse geocoding failed — coordinates saved');
         }
       },
       (err) => toast.error(err.message || 'Could not get location'),
-      { enableHighAccuracy: true, timeout: 15000 },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   };
 

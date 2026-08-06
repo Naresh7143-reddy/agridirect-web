@@ -81,16 +81,35 @@ export default function FarmerProfile() {
 
   const useCurrentLocation = () => {
     if (navigator.geolocation) {
+      toast.info('Getting exact farm GPS location...');
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setFarmForm((prev) => ({
-            ...prev,
-            farmLat: Number(pos.coords.latitude.toFixed(6)),
-            farmLng: Number(pos.coords.longitude.toFixed(6)),
-          }));
-          toast.success('Coordinates updated from GPS!');
+        async (pos) => {
+          const lat = Number(pos.coords.latitude.toFixed(6));
+          const lng = Number(pos.coords.longitude.toFixed(6));
+          try {
+            const r = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
+            );
+            const data = await r.json();
+            const a = data.address || {};
+            const road = a.road || a.street || a.neighbourhood || a.suburb;
+            const area = a.suburb || a.village || a.town || a.city || a.county;
+            const locStr = [road, area, a.state].filter(Boolean).join(', ') || data.display_name?.split(',').slice(0, 2).join(',') || 'Farm Location';
+
+            setFarmForm((prev) => ({
+              ...prev,
+              farmLat: lat,
+              farmLng: lng,
+              location: locStr,
+            }));
+            toast.success(`Farm location set to ${locStr} (${lat}, ${lng})!`);
+          } catch {
+            setFarmForm((prev) => ({ ...prev, farmLat: lat, farmLng: lng }));
+            toast.success(`Farm coordinates updated! (${lat}, ${lng})`);
+          }
         },
-        () => toast.error('Could not get GPS location')
+        () => toast.error('Could not get GPS location'),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
     }
   };
