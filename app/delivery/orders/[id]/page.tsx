@@ -297,7 +297,7 @@ export default function DeliveryOrderDetailPage() {
         <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-100">
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400 font-medium">Estimated Delivery Earning:</span>
-            <span className="text-xl font-black text-emerald-600">{formatINR(order.deliveryFee || 40)}</span>
+            <span className="text-xl font-black text-emerald-600">{formatINR(Math.max(30, order.deliveryFee || 30))}</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -312,13 +312,20 @@ export default function DeliveryOrderDetailPage() {
             )}
 
             {currentStepIdx <= 1 && (
-              <button
-                onClick={() => updateStatus('PICKED_UP')}
-                disabled={busy}
-                className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md transition flex items-center gap-2"
-              >
-                {busy ? <Loader2 className="size-4 animate-spin" /> : '📦 Confirm Picked Up from Farm'}
-              </button>
+              ['PENDING', 'ACCEPTED'].includes(statusUpper) ? (
+                <div className="px-5 py-2.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 text-amber-800 text-xs font-bold flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin text-amber-600" />
+                  <span>Farmer is packing order... Pick up enabled after farmer packs.</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => updateStatus('PICKED_UP')}
+                  disabled={busy}
+                  className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md transition flex items-center gap-2"
+                >
+                  {busy ? <Loader2 className="size-4 animate-spin" /> : '📦 Confirm Picked Up from Farm'}
+                </button>
+              )
             )}
 
             {currentStepIdx >= 2 && currentStepIdx < 4 && (
