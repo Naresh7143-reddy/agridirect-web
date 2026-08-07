@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import client, { deliveryApi } from '@/lib/api';
+import { geocodeAddressText } from '@/lib/geocoding';
 import { formatINR } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 
@@ -64,13 +65,45 @@ export default function DeliveryOrderDetailPage() {
   const [currentCoords, setCurrentCoords] = useState<[number, number] | null>(null);
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
 
+  const [resolvedDropLoc, setResolvedDropLoc] = useState<[number, number] | undefined>(undefined);
+  const [resolvedPickupLoc, setResolvedPickupLoc] = useState<[number, number] | undefined>(undefined);
+
   const locIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadOrder = useCallback(() => {
     setLoading(true);
     client
       .get(`/api/delivery/orders/${id}`)
-      .then((r) => setOrder(r.data?.data ?? r.data))
+      .then((r) => {
+        const data = r.data?.data ?? r.data;
+        setOrder(data);
+
+        // Resolve drop & pickup coordinates dynamically
+        const rawPLat = data?.pickupLat ?? data?.farmerLat;
+        const rawPLng = data?.pickupLng ?? data?.farmerLng;
+        const rawDLat = data?.dropLat ?? data?.deliveryLat ?? (typeof data?.deliveryAddress === 'object' ? data?.deliveryAddress?.lat : null);
+        const rawDLng = data?.dropLng ?? data?.deliveryLng ?? (typeof data?.deliveryAddress === 'object' ? data?.deliveryAddress?.lng : null);
+
+        if (rawPLat && rawPLng && Number(rawPLat) !== 0) {
+          setResolvedPickupLoc([Number(rawPLat), Number(rawPLng)]);
+        } else if (data?.pickupAddress) {
+          geocodeAddressText(data.pickupAddress).then((geo) => {
+            if (geo) setResolvedPickupLoc([geo.lat, geo.lng]);
+          });
+        }
+
+        const addrStr = typeof data?.dropAddress === 'object' && data?.dropAddress !== null
+          ? [data.dropAddress.line1 || data.dropAddress.label, data.dropAddress.city, data.dropAddress.state, data.dropAddress.pincode].filter(Boolean).join(', ')
+          : String(data?.dropAddress || data?.deliveryAddress || '');
+
+        if (rawDLat && rawDLng && Number(rawDLat) !== 0) {
+          setResolvedDropLoc([Number(rawDLat), Number(rawDLng)]);
+        } else if (addrStr && addrStr !== 'Buyer Address') {
+          geocodeAddressText(addrStr).then((geo) => {
+            if (geo) setResolvedDropLoc([geo.lat, geo.lng]);
+          });
+        }
+      })
       .catch(() => {
         toast.error('Could not load order details');
       })
@@ -160,16 +193,16 @@ export default function DeliveryOrderDetailPage() {
   const rawDropLng = order.dropLng ?? order.deliveryLng ?? (typeof order.deliveryAddress === 'object' ? order.deliveryAddress?.lng : null);
 
   const pickupLoc: [number, number] | undefined =
-    rawPickupLat && rawPickupLng && Number(rawPickupLat) !== 0
+    resolvedPickupLoc ||
+    (rawPickupLat && rawPickupLng && Number(rawPickupLat) !== 0
       ? [Number(rawPickupLat), Number(rawPickupLng)]
-      : undefined;
+      : undefined);
 
-  let dropLoc: [number, number] | undefined =
-    rawDropLat && rawDropLng && Number(rawDropLat) !== 0
+  const dropLoc: [number, number] | undefined =
+    resolvedDropLoc ||
+    (rawDropLat && rawDropLng && Number(rawDropLat) !== 0
       ? [Number(rawDropLat), Number(rawDropLng)]
-      : pickupLoc
-      ? [pickupLoc[0] + 0.015, pickupLoc[1] + 0.015]
-      : undefined;
+      : undefined);
 
   const addressDisplay = typeof order.dropAddress === 'object' && order.dropAddress !== null
     ? [order.dropAddress.line1 || order.dropAddress.label, order.dropAddress.city, order.dropAddress.state, order.dropAddress.pincode].filter(Boolean).join(', ')

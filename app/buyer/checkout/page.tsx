@@ -9,6 +9,7 @@ import { buyerApi } from '@/lib/api';
 import { useCart } from '@/lib/store';
 import { formatINR } from '@/lib/utils';
 import { calcDeliveryFee, estimatedDelivery, PLATFORM_FEE } from '@/lib/delivery';
+import { geocodeAddressText } from '@/lib/geocoding';
 
 type PaymentMethod = 'COD' | 'UPI' | 'CARD';
 
@@ -95,8 +96,22 @@ export default function CheckoutPage() {
       toast.error('Fill all required fields');
       return;
     }
+
+    let lat = newAddr.lat;
+    let lng = newAddr.lng;
+
+    // If user typed address without clicking GPS button, dynamically geocode exact coords
+    if (!lat || !lng) {
+      const fullAddressStr = `${newAddr.line1}, ${newAddr.city}, ${newAddr.state} ${newAddr.pincode}`;
+      const geo = await geocodeAddressText(fullAddressStr);
+      if (geo) {
+        lat = geo.lat;
+        lng = geo.lng;
+      }
+    }
+
     try {
-      const r = await buyerApi.addAddress({ ...newAddr, setAsDefault: addresses.length === 0 });
+      const r = await buyerApi.addAddress({ ...newAddr, lat, lng, setAsDefault: addresses.length === 0 });
       const saved = r.data;
       setAddresses((a) => [...a, saved]);
       setSelectedAddressId(saved.id);
@@ -121,6 +136,17 @@ export default function CheckoutPage() {
         : [selectedAddrObj.line1 || selectedAddrObj.label, selectedAddrObj.city, selectedAddrObj.state, selectedAddrObj.pincode].filter(Boolean).join(', ')
       : 'Delivery Address';
 
+    let finalLat = selectedAddrObj?.lat ?? selectedAddrObj?.latitude;
+    let finalLng = selectedAddrObj?.lng ?? selectedAddrObj?.longitude;
+
+    if (!finalLat || !finalLng) {
+      const geo = await geocodeAddressText(formattedAddressStr);
+      if (geo) {
+        finalLat = geo.lat;
+        finalLng = geo.lng;
+      }
+    }
+
     const orderPayload = {
       items: items.map((i) => ({
         productId: i.productId,
@@ -130,8 +156,8 @@ export default function CheckoutPage() {
       })),
       addressId: selectedAddressId,
       deliveryAddress: formattedAddressStr,
-      deliveryLat: selectedAddrObj?.lat ?? selectedAddrObj?.latitude ?? 13.0035,
-      deliveryLng: selectedAddrObj?.lng ?? selectedAddrObj?.longitude ?? 80.0030,
+      deliveryLat: finalLat || null,
+      deliveryLng: finalLng || null,
       paymentMethod: payment,
       deliveryFee: delivery,
       platformFee: PLATFORM_FEE,
