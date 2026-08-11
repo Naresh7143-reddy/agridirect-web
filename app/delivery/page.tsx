@@ -284,7 +284,7 @@ export default function DeliveryHome() {
         )}
       </div>
 
-      {/* Tab 1: Available Delivery Pool */}
+      
       {activeTab === 'available' && (
         <section className="space-y-4">
           {!loading && sortedAvailable.length === 0 ? (

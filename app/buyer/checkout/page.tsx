@@ -22,6 +22,7 @@ export default function CheckoutPage() {
   const [addresses, setAddresses] = useState<any[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [payment, setPayment] = useState<PaymentMethod>('COD');
+  const [requiredVehicleType, setRequiredVehicleType] = useState<string>('Any');
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -161,6 +162,7 @@ export default function CheckoutPage() {
       paymentMethod: payment,
       deliveryFee: delivery,
       platformFee: PLATFORM_FEE,
+      requiredVehicleType: requiredVehicleType === 'Any' ? null : requiredVehicleType.toUpperCase(),
     };
 
     try {
@@ -173,57 +175,62 @@ export default function CheckoutPage() {
         // Razorpay online payment flow
         const { paymentApi } = await import('@/lib/api');
         
-        // 1. Create order on backend
-        const res = await paymentApi.createOrder({
-          amount: grand,
-          type: 'ORDER',
-          // Optionally pass orderPayload to backend if backend create-order expects it to save pending order
-        });
-        const { orderId, amount: rpAmount } = res.data;
+        // 1. Place order in AgriDirect backend first (creates PENDING order)
+        const orderRes = await buyerApi.placeOrder(orderPayload);
+        const placedOrder = orderRes.data || orderRes;
+        const agridirectOrderId = placedOrder.id;
 
-        // 2. Open Razorpay checkout
+        if (!agridirectOrderId) {
+          throw new Error('Order creation failed on backend');
+        }
+
+        // 2. Create Razorpay order on backend with the AgriDirect orderId
+        const rzpRes = await paymentApi.createOrder({
+          orderId: agridirectOrderId,
+        });
+
+        const rzpData = rzpRes.data || rzpRes;
+        const razorpayOrderId = rzpData.razorpay_order_id || rzpData.orderId;
+        const keyId = rzpData.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY || 'rzp_test_SwdZmhaJQfFvHZ';
+        const amountInPaise = rzpData.amount ? Math.round(rzpData.amount * 100) : Math.round(grand * 100);
+
+        // 3. Open Razorpay checkout modal
         const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_placeholder', // Fallback for dev
-          amount: rpAmount,
-          currency: 'INR',
+          key: keyId,
+          amount: amountInPaise,
+          currency: rzpData.currency || 'INR',
           name: 'AgriDirect',
-          description: 'Order Payment',
-          order_id: orderId,
+          description: 'Payment for Fresh Produce Order',
+          order_id: razorpayOrderId,
           handler: async function (response: any) {
             try {
               toast.loading('Verifying payment...', { id: 'payment-verify' });
               
-              // 3. Verify on backend
+              // 4. Verify payment signature on backend
               await paymentApi.verify({
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature,
               });
 
-              // 4. Actually place the order in our system
-              await buyerApi.placeOrder({
-                ...orderPayload,
-                paymentId: response.razorpay_payment_id,
-              });
-              
               toast.dismiss('payment-verify');
               clear();
               toast.success('Payment successful & Order placed! 🎉');
               router.push('/buyer/orders');
             } catch (err: any) {
               toast.dismiss('payment-verify');
-              toast.error('Payment verification failed. Please contact support.');
+              toast.error(err?.response?.data?.message || 'Payment verification failed. Please contact support.');
             }
           },
           prefill: {
-            name: 'Buyer', // could fetch from profile
-            contact: '9999999999',
+            name: selectedAddrObj?.label || 'Buyer',
+            contact: '9876543210',
           },
-          theme: { color: '#2E7D32' },
+          theme: { color: '#16a34a' },
         };
         const rzp = new (window as any).Razorpay(options);
         rzp.on('payment.failed', function (response: any) {
-          toast.error(response.error.description || 'Payment failed');
+          toast.error(response?.error?.description || 'Payment failed');
         });
         rzp.open();
       }
@@ -331,6 +338,27 @@ export default function CheckoutPage() {
               {payment === 'UPI' ? 'UPI checkout will open Razorpay (test mode).' : 'Card checkout uses Razorpay test mode.'}
             </p>
           )}
+        </section>
+
+        {/* Vehicle Selection */}
+        <section className="card">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">🚚 Delivery Vehicle (Optional)</h2>
+          <div className="grid sm:grid-cols-4 gap-3">
+            {['Any', 'Bike', 'Auto', 'Mini Truck'].map((v) => (
+              <button
+                key={v}
+                onClick={() => setRequiredVehicleType(v)}
+                className={`rounded-2xl border-2 p-3 text-sm font-semibold transition ${
+                  requiredVehicleType === v ? 'border-primary bg-primary/5 text-primary' : 'border-border hover:border-primary/40'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-ink-3 mt-3">
+            Select a specific vehicle type if your order is large or requires special handling.
+          </p>
         </section>
       </div>
 
