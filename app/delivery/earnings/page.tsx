@@ -57,18 +57,14 @@ export default function DeliveryEarnings() {
 
   const displayedEarnings =
     timeframe === 'today'
-      ? earnings.todayEarnings ?? 340
+      ? earnings.todayEarnings ?? 0
       : timeframe === 'week'
-      ? earnings.weekEarnings ?? 1190
+      ? earnings.weekEarnings ?? 0
       : timeframe === 'month'
-      ? earnings.monthEarnings ?? 4760
-      : earnings.totalEarnings ?? 5950;
+      ? earnings.monthEarnings ?? 0
+      : earnings.totalEarnings ?? 0;
 
-  const recentPayouts = earnings.recentPayouts ?? [
-    { id: 'PAY-1092', orderId: 'ORD-8921', date: 'Today, 02:45 PM', amount: 95, distanceKm: 4.2, status: 'COMPLETED', customerTip: 15 },
-    { id: 'PAY-1088', orderId: 'ORD-8918', date: 'Today, 11:20 AM', amount: 85, distanceKm: 3.8, status: 'COMPLETED', customerTip: 10 },
-    { id: 'PAY-1074', orderId: 'ORD-8890', date: 'Yesterday, 06:15 PM', amount: 110, distanceKm: 6.5, status: 'COMPLETED', customerTip: 20 },
-  ];
+  const recentPayouts = earnings.recentPayouts ?? [];
 
   return (
     <div className="space-y-8 pb-12">
@@ -125,15 +121,15 @@ export default function DeliveryEarnings() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15">
               <div>
                 <div className="text-xs text-white/70">Total Deliveries</div>
-                <div className="text-lg font-bold mt-0.5">{earnings.totalDeliveries ?? 14}</div>
+                <div className="text-lg font-bold mt-0.5">{earnings.totalDeliveries ?? 0}</div>
               </div>
               <div>
                 <div className="text-xs text-white/70">Avg Per Order</div>
-                <div className="text-lg font-bold mt-0.5">{formatINR(earnings.avgPerDelivery ?? 85)}</div>
+                <div className="text-lg font-bold mt-0.5">{formatINR(earnings.avgPerDelivery ?? 0)}</div>
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <div className="text-xs text-white/70">Pending Payout</div>
-                <div className="text-lg font-bold text-yellow-300 mt-0.5">{formatINR(earnings.pendingPayout ?? 425)}</div>
+                <div className="text-lg font-bold text-yellow-300 mt-0.5">{formatINR(earnings.pendingPayout ?? 0)}</div>
               </div>
             </div>
           </div>
@@ -187,10 +183,10 @@ export default function DeliveryEarnings() {
           </h2>
 
           <div className="space-y-4">
-            <MetricRow label="Customer Rating" value={`${(earnings.avgRating ?? 4.9).toFixed(1)} ⭐`} badge="Excellent" color="text-amber-500" />
-            <MetricRow label="Order Acceptance Rate" value={`${earnings.acceptanceRate ?? 96}%`} badge="Top Partner" color="text-emerald-500" />
-            <MetricRow label="On-Time Delivery Rate" value={`${earnings.onTimeRate ?? 94}%`} badge="Super Fast" color="text-blue-500" />
-            <MetricRow label="Total Distance Covered" value={`${earnings.totalKm ?? 63} km`} badge="High Mobility" color="text-indigo-500" />
+            <MetricRow label="Customer Rating" value={`${(earnings.avgRating ?? 0.0).toFixed(1)} ⭐`} badge="Excellent" color="text-amber-500" />
+            <MetricRow label="Order Acceptance Rate" value={`${earnings.acceptanceRate ?? 0}%`} badge="Top Partner" color="text-emerald-500" />
+            <MetricRow label="On-Time Delivery Rate" value={`${earnings.onTimeRate ?? 0}%`} badge="Super Fast" color="text-blue-500" />
+            <MetricRow label="Total Distance Covered" value={`${earnings.totalKm ?? 0} km`} badge="High Mobility" color="text-indigo-500" />
           </div>
         </div>
 
@@ -201,9 +197,9 @@ export default function DeliveryEarnings() {
           </h2>
 
           <div className="space-y-4 pt-2">
-            <BarRow label="Completed" value={earnings.completedDeliveries ?? 14} max={15} color="bg-emerald-500" />
-            <BarRow label="In Progress" value={earnings.activeDeliveries ?? 1} max={15} color="bg-blue-500" />
-            <BarRow label="Cancelled" value={earnings.cancelledDeliveries ?? 1} max={15} color="bg-red-400" />
+            <BarRow label="Completed" value={earnings.completedDeliveries ?? 0} max={15} color="bg-emerald-500" />
+            <BarRow label="In Progress" value={earnings.activeDeliveries ?? 0} max={15} color="bg-blue-500" />
+            <BarRow label="Cancelled" value={earnings.cancelledDeliveries ?? 0} max={15} color="bg-red-400" />
           </div>
         </div>
       </div>
