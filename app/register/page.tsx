@@ -23,6 +23,8 @@ export default function RegisterPage() {
   const [name, setName] = useState('');
   const [farmName, setFarmName] = useState('');
   const [location, setLocation] = useState('');
+  const [vehicleNumber, setVehicleNumber] = useState('');
+  const [vehicleType, setVehicleType] = useState('BIKE');
   const [loading, setLoading] = useState(false);
   const [idToken, setIdToken] = useState<string | null>(null);
 
@@ -41,6 +43,10 @@ export default function RegisterPage() {
       toast.error('Please enter your name');
       return;
     }
+    if (role === 'DELIVERY' && !vehicleNumber.trim()) {
+      toast.error('Please enter your Bike / Vehicle Number');
+      return;
+    }
     if (!idToken || !role) return;
     setLoading(true);
     try {
@@ -48,6 +54,11 @@ export default function RegisterPage() {
       if (role === 'FARMER') {
         payload.farmName = farmName.trim() || undefined;
         payload.location = location.trim() || undefined;
+      }
+      if (role === 'DELIVERY') {
+        payload.vehicleRegistration = vehicleNumber.trim();
+        payload.vehicleNumber = vehicleNumber.trim();
+        payload.vehicleType = vehicleType || 'BIKE';
       }
       const res = await authApi.register(payload);
       const tokens = res.data?.tokens;
@@ -149,9 +160,27 @@ export default function RegisterPage() {
               <Field label="Farm Location" value={location} onChange={setLocation} placeholder="e.g. Giddalur, AP" />
             </>
           )}
+          {role === 'DELIVERY' && (
+            <>
+              <Field label="Bike / Vehicle Number *" value={vehicleNumber} onChange={setVehicleNumber} placeholder="e.g. TS 09 AB 1234" testId="vehicle-number-input" />
+              <div>
+                <label className="block text-sm font-semibold mb-2">Vehicle Type</label>
+                <select
+                  value={vehicleType}
+                  onChange={(e) => setVehicleType(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-border focus:border-primary outline-none bg-white font-medium"
+                >
+                  <option value="BIKE">Bike</option>
+                  <option value="SCOOTER">Scooter</option>
+                  <option value="AUTO">Auto</option>
+                  <option value="VAN">Van / Truck</option>
+                </select>
+              </div>
+            </>
+          )}
         </div>
 
-        <button onClick={submit} disabled={loading || !name.trim()} className="btn-primary w-full mt-8" data-testid="register-submit-btn">
+        <button onClick={submit} disabled={loading || !name.trim() || (role === 'DELIVERY' && !vehicleNumber.trim())} className="btn-primary w-full mt-8" data-testid="register-submit-btn">
           {loading ? <Loader2 className="size-5 animate-spin" /> : <>Create account <ArrowRight className="size-5" /></>}
         </button>
       </motion.div>

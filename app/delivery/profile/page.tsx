@@ -15,7 +15,7 @@ export default function DeliveryProfile() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: '', phone: '', vehicleType: '' });
+  const [form, setForm] = useState({ name: '', phone: '', vehicleType: '', vehicleRegistration: '' });
 
   useEffect(() => {
     Promise.all([
@@ -24,7 +24,7 @@ export default function DeliveryProfile() {
     ]).then(([p, u]) => {
       setProfile(p);
       setUser(u);
-      if (p) setForm({ name: p.name || u?.name || '', phone: p.phone || u?.phone || '', vehicleType: p.vehicleType || 'BIKE' });
+      if (p) setForm({ name: p.name || u?.name || '', phone: p.phone || u?.phone || '', vehicleType: p.vehicleType || 'BIKE', vehicleRegistration: p.vehicleRegistration || p.vehicleNumber || '' });
     }).finally(() => setLoading(false));
   }, []);
 
@@ -139,6 +139,10 @@ export default function DeliveryProfile() {
               <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input w-full" placeholder="Phone number" />
             </div>
             <div>
+              <label className="block text-sm font-semibold mb-1">Bike / Vehicle Number</label>
+              <input value={form.vehicleRegistration} onChange={(e) => setForm({ ...form, vehicleRegistration: e.target.value })} className="input w-full" placeholder="e.g. TS 09 AB 1234" />
+            </div>
+            <div>
               <label className="block text-sm font-semibold mb-1">Vehicle Type</label>
               <select value={form.vehicleType} onChange={(e) => setForm({ ...form, vehicleType: e.target.value })} className="input w-full">
                 <option value="BIKE">Bike</option>
@@ -160,7 +164,8 @@ export default function DeliveryProfile() {
           <div className="space-y-3">
             <Info icon={User} label="Name" value={form.name || 'Not set'} />
             <Info icon={Phone} label="Phone" value={form.phone || 'Not set'} />
-            <Info icon={Truck} label="Vehicle" value={form.vehicleType || 'Not set'} />
+            <Info icon={Truck} label="Vehicle Number" value={form.vehicleRegistration || profile?.vehicleRegistration || profile?.vehicleNumber || 'Not set'} />
+            <Info icon={Truck} label="Vehicle Type" value={form.vehicleType || 'Not set'} />
             {profile?.currentLat && profile?.currentLng && (
               <Info icon={MapPin} label="Last Location" value={`${profile.currentLat.toFixed(4)}, ${profile.currentLng.toFixed(4)}`} />
             )}
