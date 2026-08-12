@@ -14,9 +14,12 @@ interface User {
   phone: string;
   email?: string;
   role: string;
-  isActive: boolean;
+  isActive?: boolean;
+  active?: boolean;
   createdAt: string;
 }
+
+const isUserActive = (u: User) => u.isActive ?? u.active ?? true;
 
 const ROLE_COLOR: Record<string, string> = {
   FARMER:   'bg-success/10 text-success',
@@ -45,12 +48,13 @@ export default function AdminUsers() {
 
   const toggle = async (user: User) => {
     setActionId(user.id);
+    const currentlyActive = isUserActive(user);
     try {
-      const url = user.isActive
+      const url = currentlyActive
         ? `/api/admin/users/${user.id}/block`
         : `/api/admin/users/${user.id}/unblock`;
       await client.put(url);
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isActive: !u.isActive } : u));
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isActive: !currentlyActive, active: !currentlyActive } : u));
     } catch {}
     finally { setActionId(null); }
   };
@@ -71,7 +75,7 @@ export default function AdminUsers() {
         </div>
         <div className="flex items-center gap-2 bg-success/10 text-success font-bold rounded-xl px-4 py-2">
           <Users className="size-4" />
-          {users.filter(u => u.isActive).length} active
+          {users.filter(u => isUserActive(u)).length} active
         </div>
       </div>
 
@@ -137,44 +141,47 @@ export default function AdminUsers() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={6} className="text-center py-12 text-ink-2">No users found</td></tr>
-              ) : filtered.map((user, i) => (
-                <motion.tr
-                  key={user.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.03 }}
-                  className="border-b border-border last:border-0 hover:bg-bg"
-                >
-                  <td className="px-4 py-3 font-semibold">{user.name || '—'}</td>
-                  <td className="px-4 py-3 text-ink-2 flex items-center gap-1">
-                    <Phone className="size-3" />{user.phone}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${ROLE_COLOR[user.role] ?? 'bg-bg text-ink-2'}`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${user.isActive ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}`}>
-                      {user.isActive ? 'Active' : 'Blocked'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-ink-2">{new Date(user.createdAt).toLocaleDateString('en-IN')}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => toggle(user)}
-                      disabled={actionId === user.id}
-                      className={`flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg transition ${
-                        user.isActive
-                          ? 'bg-error/10 text-error hover:bg-error/20'
-                          : 'bg-success/10 text-success hover:bg-success/20'
-                      }`}
-                    >
-                      {actionId === user.id ? <Loader2 className="size-3 animate-spin" /> : user.isActive ? <><UserX className="size-3"/>Block</> : <><UserCheck className="size-3"/>Unblock</>}
-                    </button>
-                  </td>
-                </motion.tr>
-              ))}
+              ) : filtered.map((user, i) => {
+                const active = isUserActive(user);
+                return (
+                  <motion.tr
+                    key={user.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: i * 0.03 }}
+                    className="border-b border-border last:border-0 hover:bg-bg"
+                  >
+                    <td className="px-4 py-3 font-semibold">{user.name || '—'}</td>
+                    <td className="px-4 py-3 text-ink-2 flex items-center gap-1">
+                      <Phone className="size-3" />{user.phone}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${ROLE_COLOR[user.role] ?? 'bg-bg text-ink-2'}`}>
+                        {user.role}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${active ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}`}>
+                        {active ? 'Active' : 'Blocked'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-ink-2">{new Date(user.createdAt).toLocaleDateString('en-IN')}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => toggle(user)}
+                        disabled={actionId === user.id}
+                        className={`flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg transition ${
+                          active
+                            ? 'bg-error/10 text-error hover:bg-error/20'
+                            : 'bg-success/10 text-success hover:bg-success/20'
+                        }`}
+                      >
+                        {actionId === user.id ? <Loader2 className="size-3 animate-spin" /> : active ? <><UserX className="size-3"/>Block</> : <><UserCheck className="size-3"/>Unblock</>}
+                      </button>
+                    </td>
+                  </motion.tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
