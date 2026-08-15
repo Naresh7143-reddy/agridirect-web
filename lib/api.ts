@@ -289,4 +289,17 @@ export const aiApi = {
     client.post('/api/farmer/ai/advice', data).then((r) => r.data),
   getPriceForecast: (data: { cropName: string; location: string }) =>
     client.post('/api/farmer/ai/price-forecast', data).then((r) => r.data),
+  // ─── New Advanced Features ───────────────────────────────────────────────────
+  getWeatherAdvisor: (data: { location: string; cropName: string; season?: string }) =>
+    client.post('/api/farmer/ai/weather-advisor', data).then((r) => r.data),
+  getFertilizerAdvice: (data: { cropName: string; soilType: string; yield_target?: string; water_availability?: string }) =>
+    client.post('/api/farmer/ai/fertilizer-advisor', data).then((r) => r.data),
+  getPestAdvisor: (data: { symptom: string; cropName: string; location?: string }) =>
+    client.post('/api/farmer/ai/pest-advisor', data).then((r) => r.data),
+  getYieldPrediction: (data: { cropName: string; area_hectares: number; soil_fertility: string; water_availability: string; season: string }) =>
+    client.post('/api/farmer/ai/yield-predictor', data).then((r) => r.data),
+  getSoilHealth: (data: { ph_level: number; nitrogen: string; phosphorus: string; potassium: string; organic_matter: string }) =>
+    client.post('/api/farmer/ai/soil-health', data).then((r) => r.data),
+  compareCrops: (data: { crop1: string; crop2: string; season: string; location: string }) =>
+    client.post('/api/farmer/ai/crop-comparison', data).then((r) => r.data),
 };
